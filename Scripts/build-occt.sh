@@ -232,6 +232,7 @@ for tk in "${TOOLKITS[@]}"; do
 		exit 1
 	fi
 	ar rcs "$PREFIX/lib/lib$tk.a" "$objdir"/*.o
+	ranlib "$PREFIX/lib/lib$tk.a"
 	rm -rf "$objdir"
 	echo "   $tk: $count sources -> lib$tk.a"
 done
@@ -247,9 +248,30 @@ cp "$SRC/OCCT/LICENSE_LGPL_21.txt" "$SRC/OCCT/OCCT_LGPL_EXCEPTION.txt" "$PREFIX/
 # ---------------------------------------------------------- verification
 echo "== verifying 35 arm64 archives + hallmark symbols"
 fail=0
+# Hallmark check (rewritten after run 40965749697): all 35 toolkits
+# COMPILED and archived (SDK discovery + full compile green), but the
+# original piped `nm lib.a | grep -q` probe reported EVERY hallmark
+# missing — including Standard_Type in TKernel, which cannot be
+# absent — so the probe, not the code, was broken. (The foundations
+# stage's file-based nm grep passes on this same runner pool.) Now:
+# dump the symbol table to a file with the first reader that yields
+# output (nm, xcrun nm, llvm-nm), grep the file, and on failure print
+# real diagnostics (reader resolution, nm stderr, archive TOC head)
+# instead of a bare claim. ranlib now also runs after `ar rcs`
+# (above), matching CMake's ar+ranlib archive production.
 check_sym() { # check_sym <lib> <symbol-substring>
-	if ! nm "$PREFIX/lib/lib$1.a" 2>/dev/null | grep -q "$2"; then
-		echo "ERROR: lib$1.a missing hallmark symbol '$2'" >&2; fail=1
+	local lib="$PREFIX/lib/lib$1.a" sym="$2" dump="$WORK/nm-check-$1.txt"
+	: > "$dump"
+	for reader in nm "xcrun nm" llvm-nm; do
+		$reader "$lib" > "$dump" 2>"$WORK/nm-check-$1.err" || true
+		[ -s "$dump" ] && break
+	done
+	if ! grep -q "$sym" "$dump"; then
+		echo "ERROR: lib$1.a missing hallmark symbol '$sym'" >&2
+		echo "  nm resolves to: $(command -v nm || echo none); symbol-dump bytes: $(wc -c < "$dump" | tr -d ' ')" >&2
+		echo "  nm stderr (head):" >&2; head -n 5 "$WORK/nm-check-$1.err" >&2 || true
+		echo "  archive members (head):" >&2; ar t "$lib" 2>&1 | head -n 5 >&2 || true
+		fail=1
 	fi
 }
 for tk in "${TOOLKITS[@]}"; do
