@@ -180,28 +180,18 @@ build_glu() {
 	lipo -info "$out/libGLU.a"
 }
 
-# resolve + fetch unmodified Coin 4.0.10 release tarball from the
-# coin3d GitHub org. Asset chosen from the release's own asset list
-# via the GitHub API (no guessed asset filename).
+# Fetch unmodified Coin 4.0.10 SOURCE tarball from the coin3d GitHub
+# org. Asset name verified against the release's asset list
+# (coin-4.0.10-src.tar.gz, 11855404 B — NOT the first .tar.gz on the
+# release, which is a macOS binary). No API call: the unauthenticated
+# API rate limit killed run 40933578661's Tier 1 job. Integrity: the
+# upstream-published .sha256 sidecar value, pinned here.
 fetch_coin() {
 	if [ -d "$S4_SRC/coin-4.0.10" ]; then return 0; fi
-	echo "== resolving Coin 4.0.10 release assets (coin3d/coin)"
-	local url
-	url="$(python3 - <<'PY'
-import json, urllib.request
-req = urllib.request.Request("https://api.github.com/repos/coin3d/coin/releases/tags/v4.0.10",
-                             headers={"Accept": "application/vnd.github+json", "User-Agent": "s4-spike"})
-rel = json.load(urllib.request.urlopen(req, timeout=60))
-cands = [a["browser_download_url"] for a in rel.get("assets", [])
-         if a["name"].lower().endswith(".tar.gz")]
-print(cands[0] if cands else "")
-for a in rel.get("assets", []):
-    print("ASSET:", a["name"], file=__import__("sys").stderr)
-PY
-)"
-	echo "coin asset url: $url"
-	[ -n "$url" ] || { echo "ERROR: no .tar.gz asset on coin v4.0.10 release" >&2; exit 1; }
-	curl -sfL -o "$S4_WORK/coin.tar.gz" "$url"
+	echo "== fetching Coin 4.0.10 source (coin3d/coin release asset coin-4.0.10-src.tar.gz)"
+	curl -sfL -o "$S4_WORK/coin.tar.gz" \
+		"https://github.com/coin3d/coin/releases/download/v4.0.10/coin-4.0.10-src.tar.gz"
+	echo "13fe68831292e7e725e7db1c6909d2b4fe5802080474c229fcac14ddf6445188  $S4_WORK/coin.tar.gz" | shasum -a 256 -c -
 	tar -xzf "$S4_WORK/coin.tar.gz" -C "$S4_SRC"
 	ls -d "$S4_SRC"/*oin* 2>/dev/null || true
 	# normalise the extracted dir name to coin-4.0.10
