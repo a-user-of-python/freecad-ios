@@ -89,20 +89,46 @@ fi
 # DEVELOPER_DIR for the winner so all later xcrun calls agree.
 SDK="$(xcrun --sdk iphoneos --show-sdk-path 2>/dev/null || true)"
 if [ ! -d "$SDK" ]; then
+	# The maximize-space step deletes every /Applications/Xcode_*.app
+	# except Xcode.app, which can orphan xcode-select (the spike-s4
+	# workflows reset it the same way). Reset, then retry.
+	if [ -d /Applications/Xcode.app ]; then
+		sudo xcode-select -s /Applications/Xcode.app 2>/dev/null || true
+		SDK="$(xcrun --sdk iphoneos --show-sdk-path 2>/dev/null || true)"
+	fi
+fi
+if [ ! -d "$SDK" ]; then
 	SDK=""
-	for devdir in $(ls -d /Applications/Xcode*.app/Contents/Developer 2>/dev/null | sort -Vr); do
+	# Glob scan (no sort -V: BSD sort cannot be trusted with it).
+	for devdir in /Applications/Xcode*.app/Contents/Developer; do
+		[ -d "$devdir" ] || continue
 		candidate="$(DEVELOPER_DIR="$devdir" xcrun --sdk iphoneos --show-sdk-path 2>/dev/null || true)"
 		if [ -d "$candidate" ]; then
 			SDK="$candidate"; DEVELOPER_DIR="$devdir"; break
 		fi
-		for sdk in $(ls -d "$devdir"/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS*.sdk 2>/dev/null | sort -Vr); do
+		for sdk in "$devdir"/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS*.sdk; do
 			if [ -d "$sdk" ]; then
 				SDK="$sdk"; DEVELOPER_DIR="$devdir"; break 2
 			fi
 		done
 	done
 fi
-test -d "$SDK" || { echo "ERROR: no iPhoneOS SDK found on this runner" >&2; exit 1; }
+if [ ! -d "$SDK" ]; then
+	# Last resort: find the SDK wherever it lives under /Applications.
+	found="$(find /Applications -maxdepth 7 -type d -name 'iPhoneOS*.sdk' 2>/dev/null | head -1)"
+	if [ -d "$found" ]; then
+		SDK="$found"
+		DEVELOPER_DIR="${found%%/Platforms/*}"
+	fi
+fi
+if [ ! -d "$SDK" ]; then
+	echo "ERROR: no iPhoneOS SDK found on this runner. Diagnostics:" >&2
+	echo "  xcode-select -p: $(xcode-select -p 2>&1 || true)" >&2
+	echo "  DEVELOPER_DIR env: ${DEVELOPER_DIR:-<unset>}" >&2
+	ls /Applications >&2 || true
+	find /Applications -maxdepth 7 -type d -name '*.sdk' 2>/dev/null >&2 || true
+	exit 1
+fi
 export DEVELOPER_DIR
 CLANG="$(xcrun --find clang)"; CLANGXX="$(xcrun --find clang++)"
 TARGET="arm64-apple-ios17.0"
