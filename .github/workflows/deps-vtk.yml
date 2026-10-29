@@ -8,6 +8,10 @@ on:
       - "Scripts/build-vtk.sh"
       - ".github/workflows/deps-vtk.yml"
 
+concurrency:
+  group: deps-vtk-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   build:
     name: iosdeps-vtk tarball
