@@ -78,10 +78,36 @@ if [ ! -d "$RJ/include/rapidjson" ]; then
 fi
 
 # ---------------------------------------------------------- toolchain
-SDK="$(xcrun --sdk iphoneos --show-sdk-path)"
+# iPhoneOS SDK discovery — same strategy as qt-install.inc.sh (the
+# repo's runner-pool heterogeneity fix): on some macos-26 runners
+# the xcode-select default Xcode lacks the iOS platform and
+# `xcrun --sdk iphoneos` fails outright ("SDK iphoneos cannot be
+# located" — deps-occt run 40929074102 died exactly there, at the
+# SDK lookup, before compiling anything). Trust xcrun only if it
+# returns a real directory; otherwise scan every installed Xcode
+# (xcrun retry per DEVELOPER_DIR, then a filesystem glob), export
+# DEVELOPER_DIR for the winner so all later xcrun calls agree.
+SDK="$(xcrun --sdk iphoneos --show-sdk-path 2>/dev/null || true)"
+if [ ! -d "$SDK" ]; then
+	SDK=""
+	for devdir in $(ls -d /Applications/Xcode*.app/Contents/Developer 2>/dev/null | sort -Vr); do
+		candidate="$(DEVELOPER_DIR="$devdir" xcrun --sdk iphoneos --show-sdk-path 2>/dev/null || true)"
+		if [ -d "$candidate" ]; then
+			SDK="$candidate"; DEVELOPER_DIR="$devdir"; break
+		fi
+		for sdk in $(ls -d "$devdir"/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS*.sdk 2>/dev/null | sort -Vr); do
+			if [ -d "$sdk" ]; then
+				SDK="$sdk"; DEVELOPER_DIR="$devdir"; break 2
+			fi
+		done
+	done
+fi
+test -d "$SDK" || { echo "ERROR: no iPhoneOS SDK found on this runner" >&2; exit 1; }
+export DEVELOPER_DIR
+CLANG="$(xcrun --find clang)"; CLANGXX="$(xcrun --find clang++)"
 TARGET="arm64-apple-ios17.0"
 NCPU="$(sysctl -n hw.ncpu)"
-echo "== iOS SDK: $SDK (target $TARGET, -j$NCPU)"
+echo "== iOS SDK: $SDK (DEVELOPER_DIR=${DEVELOPER_DIR:-default}, target $TARGET, -j$NCPU)"
 
 # Header search paths: every package directory of the staging tree
 # (cascade's mechanism) + the generated-headers dir.
@@ -100,8 +126,8 @@ cat > "$WORK/compile_one.sh" <<EOF
 # args: <src> <obj>
 f="\$1"; o="\$2"
 case "\$f" in
-	*.c) exec clang ${CFLAGS[*]} ${DEFS[*]} ${INCS[*]} -c "\$f" -o "\$o" ;;
-	*)   exec clang++ ${CXXFLAGS[*]} ${DEFS[*]} ${INCS[*]} -c "\$f" -o "\$o" ;;
+	*.c) exec $CLANG ${CFLAGS[*]} ${DEFS[*]} ${INCS[*]} -c "\$f" -o "\$o" ;;
+	*)   exec $CLANGXX ${CXXFLAGS[*]} ${DEFS[*]} ${INCS[*]} -c "\$f" -o "\$o" ;;
 esac
 EOF
 chmod +x "$WORK/compile_one.sh"
