@@ -8,6 +8,7 @@
 #   src/Gui/BitmapFactory.cpp:788   #if QT_VERSION < 6.9.0 mirror()
 #                                   #else QImage::flip(Qt::Vertical)
 #   src/Gui/NaviCube.cpp:774        #else QImage::flipped(Qt::Vertical)
+#   src/Gui/View3DInventorViewer.cpp:407  #else flipped(Qt::Vertical)
 #   src/Gui/PreferencePages/DlgSettingsPDF.cpp
 #                                   #if >= 6.8.0 PdfVersion_X4
 #   src/Gui/Dialogs/DlgExpressionInput.cpp
