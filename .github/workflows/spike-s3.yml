@@ -1,0 +1,37 @@
+name: Spike S3 — Python embedding (Phase A1)
+
+# Standalone spike workflow (synthesis §3, S3): proves the BeeWare
+# Python 3.13 XCFramework embeds and runs in an iOS app on the CI
+# simulator, and that the same harness links for device arm64.
+# Independent of deps-python.yml; both consume the same pinned asset.
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "Spike/S3/**"
+      - ".github/workflows/spike-s3.yml"
+
+jobs:
+  spike:
+    name: S3 embedding proof (simulator)
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Maximize build space
+        run: |
+          df -h
+          sudo rm -rf /usr/share/dotnet /opt/ghc 2>/dev/null || true
+          df -h
+
+      - name: Run S3 spike (build sim + device, run on simulator)
+        run: bash Spike/S3/build-and-run.sh
+
+      - name: Upload spike results
+        uses: actions/upload-artifact@v4
+        with:
+          name: spike-s3-results
+          path: dist-s3/
+          retention-days: 90
+          if-no-files-found: warn
