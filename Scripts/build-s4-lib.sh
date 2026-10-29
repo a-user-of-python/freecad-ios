@@ -127,7 +127,9 @@ build_gl4es() {
 		-DCMAKE_BUILD_TYPE=Release
 	cmake --build "$S4_WORK/gl4es-$arch" --target GL
 	local lib
-	lib="$(find "$S4_WORK/gl4es-$arch" -name 'libGL.a' | head -1)"
+	# gl4es writes the archive into its SOURCE tree (src/gl4es/lib/),
+	# not the build dir — search both (build dir first).
+	lib="$(find "$S4_WORK/gl4es-$arch" "$S4_SRC/gl4es/lib" -name 'libGL.a' 2>/dev/null | head -1)"
 	[ -n "$lib" ] || { echo "ERROR: libGL.a not produced for $arch" >&2; find "$S4_WORK/gl4es-$arch" -name '*.a' >&2; exit 1; }
 	mkdir -p "$out"
 	cp "$lib" "$out/libGL.a"
