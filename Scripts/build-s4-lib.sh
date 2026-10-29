@@ -85,7 +85,7 @@ PY
 # their *Indexed implementations (exactly what the ELF alias did).
 build_gl4es_applefix() {
 	local arch="$1" sdk tgt
-	if [ "$arch" = device ]; then sdk=iphoneos; tgt="arm64-apple-ios17.0"; else sdk=iphonesimulator; tgt="arm64-apple-ios17.0-simulator"; fi
+	if [ "$arch" = device ]; then sdk=iphoneos; tgt="arm64-apple-ios17.0"; else sdk=iphonesimulator; tgt="x86_64-apple-ios17.0-simulator"; fi
 	local out="$S4_PREFIX/$arch/lib"
 	if [ -f "$out/libGL4ESAppleFix.a" ]; then return 0; fi
 	cat > "$S4_WORK/gl4es_applefix.c" <<'EOF'
@@ -111,7 +111,7 @@ EOF
 # selects the GLES2 backend (COMPILE.md "Custom build" note).
 build_gl4es() {
 	local arch="$1" plat sdk
-	if [ "$arch" = device ]; then plat=OS64; sdk=iphoneos; else plat=SIMULATORARM64; sdk=iphonesimulator; fi
+	if [ "$arch" = device ]; then plat=OS64; sdk=iphoneos; else plat=SIMULATOR; sdk=iphonesimulator; fi
 	local out="$S4_PREFIX/$arch/lib"
 	if [ -f "$out/libGL.a" ]; then echo "== gl4es ($arch) already built"; return 0; fi
 	echo "== building gl4es ($arch, PLATFORM=$plat, NOX11/NOEGL/STATICLIB, DEFAULT_ES=2)"
@@ -146,7 +146,7 @@ build_gl4es() {
 # against gl4es headers — no autotools/meson cross fight.
 build_glu() {
 	local arch="$1" sdk tgt
-	if [ "$arch" = device ]; then sdk=iphoneos; tgt="arm64-apple-ios17.0"; else sdk=iphonesimulator; tgt="arm64-apple-ios17.0-simulator"; fi
+	if [ "$arch" = device ]; then sdk=iphoneos; tgt="arm64-apple-ios17.0"; else sdk=iphonesimulator; tgt="x86_64-apple-ios17.0-simulator"; fi
 	local out="$S4_PREFIX/$arch/lib"
 	if [ -f "$out/libGLU.a" ]; then echo "== GLU ($arch) already built"; return 0; fi
 	if [ ! -d "$S4_SRC/glu-9.0.3" ]; then
@@ -221,7 +221,7 @@ fetch_coin() {
 # build_coin <device|sim> — unmodified Coin against gl4es + GLU.
 build_coin() {
 	local arch="$1" plat
-	if [ "$arch" = device ]; then plat=OS64; else plat=SIMULATORARM64; fi
+	if [ "$arch" = device ]; then plat=OS64; else plat=SIMULATOR; fi
 	local out="$S4_PREFIX/$arch"
 	if [ -f "$out/lib/libCoin.a" ]; then echo "== Coin ($arch) already built"; return 0; fi
 	echo "== building Coin 4.0.10 ($arch) against gl4es"
@@ -235,6 +235,7 @@ build_coin() {
 		-DCOIN_BUILD_DOCUMENTATION=OFF -DCOIN_BUILD_TESTS=OFF \
 		-DCOIN_BUILD_EXAMPLES=OFF -DCOIN_BUILD_SHARED_LIBS=OFF \
 		-DCOIN_USE_QT=OFF \
+		-DHAVE_GL_GL_H=ON -DHAVE_GL_GLU_H=ON -DHAVE_GL_GLEXT_H=ON \
 		-DOPENGL_INCLUDE_DIR="$S4_PREFIX/src/gl4es/include" \
 		-DOPENGL_gl_LIBRARY="$out/lib/libGL.a" \
 		-DOPENGL_glu_LIBRARY="$out/lib/libGLU.a" \
@@ -299,6 +300,7 @@ configure_app() {
 		-DQT_HOST_PATH="$QT_DESKTOP" \
 		-DQT_UIKIT_SDK="$uikit" \
 		-DCMAKE_OSX_SYSROOT="$uikit" \
+		-DCMAKE_OSX_ARCHITECTURES="$([ "$arch" = sim ] && echo x86_64 || echo arm64)" \
 		-DCMAKE_PREFIX_PATH="$QT_IOS" -DQt6_DIR="$QT_IOS/lib/cmake/Qt6" \
 		-DCMAKE_OSX_DEPLOYMENT_TARGET=17.0 \
 		-DCMAKE_BUILD_TYPE=Release \
