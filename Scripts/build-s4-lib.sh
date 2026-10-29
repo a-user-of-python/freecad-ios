@@ -167,7 +167,11 @@ build_glu() {
 	local n=0
 	while IFS= read -r f; do
 		local o="$objdir/$(echo "$f" | tr '/' '_').o"
+		# Mesa GLU's libnurbs headers call assert/free without including
+		# <cassert>/<cstdlib> (desktop builds get them transitively);
+		# force-include the C headers so every TU sees them.
 		xcrun -sdk "$sdk" clang++ -target "$tgt" -std=c++14 -O2 -DNDEBUG \
+			-include assert.h -include stdlib.h -include string.h \
 			"${incs[@]}" -c "$f" -o "$o"
 		n=$((n+1))
 	done < <(find "$GLU_SRC/src" -name '*.cc' -o -name '*.c' | grep -v -i 'mesa' || true)

@@ -1,0 +1,1 @@
+qt-gate battery resource payload
