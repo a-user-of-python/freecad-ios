@@ -58,6 +58,38 @@ echo "=============================================================="
 # that is a genuine GATE-BLOCKED and the workflow should show it.
 . "$ROOT/Scripts/qt-install.inc.sh"
 
+# SDK recovery (run 40946217444 lesson): on that runner the inc's
+# discovery returned EMPTY (xcode-select pointed at CommandLineTools;
+# its `sort -Vr` scan is unreliable under BSD sort) and passing an
+# explicit empty -DCMAKE_OSX_SYSROOT then poisoned the Qt toolchain's
+# own SDK resolution — the battery configure fell back to the MacOSX
+# SDK and Qt6Gui's GLESv2 check failed. Recover like build-occt.sh:
+# reset xcode-select, rescan without sort -V, filesystem fallback.
+if [ -z "${IOS_SDK_PATH:-}" ] || [ ! -d "$IOS_SDK_PATH" ]; then
+	echo "== iPhoneOS SDK recovery (inc returned '${IOS_SDK_PATH:-empty}')"
+	if [ -d /Applications/Xcode.app ]; then
+		sudo xcode-select -s /Applications/Xcode.app 2>/dev/null || true
+		IOS_SDK_PATH="$(xcrun --sdk iphoneos --show-sdk-path 2>/dev/null || true)"
+	fi
+	if [ -z "${IOS_SDK_PATH:-}" ] || [ ! -d "$IOS_SDK_PATH" ]; then
+		IOS_SDK_PATH=""
+		for devdir in /Applications/Xcode*.app/Contents/Developer; do
+			[ -d "$devdir" ] || continue
+			candidate="$(DEVELOPER_DIR="$devdir" xcrun --sdk iphoneos --show-sdk-path 2>/dev/null || true)"
+			if [ -d "$candidate" ]; then IOS_SDK_PATH="$candidate"; DEVELOPER_DIR="$devdir"; break; fi
+			for sdk in "$devdir"/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS*.sdk; do
+				if [ -d "$sdk" ]; then IOS_SDK_PATH="$sdk"; DEVELOPER_DIR="$devdir"; break 2; fi
+			done
+		done
+	fi
+	if [ -z "${IOS_SDK_PATH:-}" ] || [ ! -d "$IOS_SDK_PATH" ]; then
+		found="$(find /Applications -maxdepth 7 -type d -name 'iPhoneOS*.sdk' 2>/dev/null | head -1)"
+		[ -d "$found" ] && IOS_SDK_PATH="$found"
+	fi
+	export DEVELOPER_DIR IOS_SDK_PATH
+	echo "   recovered SDK: '${IOS_SDK_PATH:-STILL EMPTY}'"
+fi
+
 echo "== Qt $QT_VERSION: adding FreeCAD's extra modules (qtsvg, qttools)"
 python3 -m aqt install-qt mac desktop "$QT_VERSION" clang_64 -O "$QT_ROOT" \
 	--modules qtsvg qttools 2>&1 | tail -3 || \
@@ -86,7 +118,6 @@ TOOLCHAIN="$QT_IOS/lib/cmake/Qt6/qt.toolchain.cmake"
 COMMON=(
 	-DCMAKE_TOOLCHAIN_FILE="$TOOLCHAIN"
 	-DQT_HOST_PATH="$QT_DESKTOP"
-	-DCMAKE_OSX_SYSROOT="$IOS_SDK_PATH"
 	-DCMAKE_OSX_DEPLOYMENT_TARGET=17.0
 	-DCMAKE_BUILD_TYPE=Release
 	-DCMAKE_POLICY_VERSION_MINIMUM=3.5
@@ -94,6 +125,13 @@ COMMON=(
 	-DCMAKE_FIND_ROOT_PATH_MODE_LIBRARY=BOTH
 	-DCMAKE_FIND_ROOT_PATH_MODE_INCLUDE=BOTH
 )
+# Pass the sysroot ONLY when a real SDK path was resolved — an
+# explicit empty CMAKE_OSX_SYSROOT breaks qt.toolchain.cmake's own
+# resolution and drops the configure onto the host SDK (run
+# 40946217444 battery GLESv2 failure).
+if [ -n "${IOS_SDK_PATH:-}" ] && [ -d "$IOS_SDK_PATH" ]; then
+	COMMON+=(-DCMAKE_OSX_SYSROOT="$IOS_SDK_PATH")
+fi
 
 # ------------------------------------------------- 2. FreeCAD source
 FC_URL="$(grep -o 'https://[^`]*freecad_source[^`]*\.tar\.gz' "$ROOT/PIN.md" | head -1)"
@@ -106,11 +144,21 @@ if [ ! -f "$SRCFC/CMakeLists.txt" ]; then
 	echo "   sha256 (actual): $ACTUAL"
 	[ "$ACTUAL" = "$FC_SHA" ] || { echo "ERROR: tarball sha256 mismatch" >&2; exit 1; }
 	mkdir -p "$SRCFC"
-	tar -xzf "$WORK/fc.tar.gz" -C "$SRCFC" --strip-components=1
+	# The weekly tarball is ROOT-FLAT (files at the top, no enclosing
+	# directory) — do NOT --strip-components: run 40946217444 did and
+	# deleted CMakeLists.txt itself, so attempt 1 configured an
+	# empty tree.
+	tar -xzf "$WORK/fc.tar.gz" -C "$SRCFC"
 	rm -f "$WORK/fc.tar.gz"
 fi
-test -f "$SRCFC/CMakeLists.txt"
-grep -m1 "a4ce44d" "$ROOT/PIN.md" >/dev/null && echo "== source extracted (PIN commit a4ce44d33b7e42e16cb8156058a1894237042ab4)"
+# Hard verification: a mangled tree must die HERE, loudly, not as a
+# nonsense configure log downstream.
+if [ ! -f "$SRCFC/CMakeLists.txt" ] || [ ! -f "$SRCFC/cMake/FreeCAD_Helpers/SetupQt.cmake" ]; then
+	echo "ERROR: extracted source tree is incomplete (CMakeLists.txt / SetupQt.cmake missing under $SRCFC)" >&2
+	ls "$SRCFC" | head -20 >&2 || true
+	exit 1
+fi
+echo "== source extracted + verified (PIN commit a4ce44d33b7e42e16cb8156058a1894237042ab4)"
 
 # ------------------------------------------------------------ 3. deps
 echo "== deps: collecting REAL artifacts (poll up to ${POLL_MINUTES} min)"
@@ -187,7 +235,9 @@ fi
 # GLU — the real companion GLU is S4 scope). Labelled [CONFIG].
 mkdir -p "$WORK/glstub"
 printf 'int qtgate_gl_stub;\n' > "$WORK/glstub/empty.c"
-xcrun clang -target arm64-apple-ios17.0 -isysroot "$IOS_SDK_PATH" \
+SYSROOT_FLAG=()
+[ -n "${IOS_SDK_PATH:-}" ] && [ -d "$IOS_SDK_PATH" ] && SYSROOT_FLAG=(-isysroot "$IOS_SDK_PATH")
+xcrun clang -target arm64-apple-ios17.0 ${SYSROOT_FLAG[@]+"${SYSROOT_FLAG[@]}"} \
 	-c "$WORK/glstub/empty.c" -o "$WORK/glstub/empty.o" 2>/dev/null || \
 	clang -c "$WORK/glstub/empty.c" -o "$WORK/glstub/empty.o"
 ar rcs "$WORK/glstub/libGL.a" "$WORK/glstub/empty.o"
@@ -213,7 +263,6 @@ tail -5 "$DIST/battery-configure.log" || true
 SYNTH=(
 	-DCMAKE_TOOLCHAIN_FILE="$TOOLCHAIN"
 	-DQT_HOST_PATH="$QT_DESKTOP"
-	-DCMAKE_OSX_SYSROOT="$IOS_SDK_PATH"
 	-DCMAKE_OSX_DEPLOYMENT_TARGET=17.0
 	-DCMAKE_BUILD_TYPE=Release
 	-DCMAKE_POLICY_VERSION_MINIMUM=3.5
@@ -235,6 +284,9 @@ SYNTH=(
 	-DOCCT_CMAKE_FALLBACK=OFF
 	-DBoost_NO_BOOST_CMAKE=ON
 )
+if [ -n "${IOS_SDK_PATH:-}" ] && [ -d "$IOS_SDK_PATH" ]; then
+	SYNTH+=(-DCMAKE_OSX_SYSROOT="$IOS_SDK_PATH")
+fi
 run_attempt() { # run_attempt <n> <extra cmake args...>
 	local n="$1"; shift
 	local bdir="$WORK/configure-a$n"
@@ -263,7 +315,11 @@ if ! cfg_done 1; then
 		-DICU_I18N_LIBRARIES="$IOS_SDK_PATH/usr/lib/libicucore.tbd")
 	[ -d "$PREFIX/include/opencascade" ] && \
 		SEEDS+=(-DOCC_INCLUDE_DIR="$PREFIX/include/opencascade")
-	run_attempt 2 "${SEEDS[@]}"
+	# bash 3.2 (macOS /bin/bash) + set -u: "${SEEDS[@]}" on an EMPTY
+	# array is a fatal unbound-variable — it killed run 40946217444
+	# at exactly this line. Use the ${arr[@]+...} idiom everywhere
+	# an array may be empty.
+	run_attempt 2 ${SEEDS[@]+"${SEEDS[@]}"}
 fi
 if ! cfg_done 1 && ! cfg_done 2 && ! qt_reached 2; then
 	# A3: bypass the pre-Qt SMESH/VTK wall + seed OpenGL/GLU.
@@ -278,7 +334,7 @@ if ! cfg_done 1 && ! cfg_done 2 && ! qt_reached 2; then
 		-DICU_I18N_LIBRARIES="$IOS_SDK_PATH/usr/lib/libicucore.tbd")
 	[ -d "$PREFIX/include/opencascade" ] && \
 		SEEDS3+=(-DOCC_INCLUDE_DIR="$PREFIX/include/opencascade")
-	run_attempt 3 "${SEEDS3[@]}" \
+	run_attempt 3 ${SEEDS3[@]+"${SEEDS3[@]}"} \
 		-DBUILD_FEM=OFF -DBUILD_MESH_PART=OFF -DBUILD_FEM_NETGEN=OFF \
 		-DOPENGL_INCLUDE_DIR="$IOS_SDK_PATH/usr/include" \
 		-DOPENGL_gl_LIBRARY="$WORK/glstub/libGL.a" \

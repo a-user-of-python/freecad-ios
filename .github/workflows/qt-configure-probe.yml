@@ -49,6 +49,11 @@ jobs:
             [ "$x" = "/Applications/Xcode.app" ] || sudo rm -rf "$x"
           done 2>/dev/null || true
           rm -rf ~/Library/Developer/CoreSimulator/Profiles/Runtimes/* 2>/dev/null || true
+          # Run 40946217444: xcode-select pointed at CommandLineTools,
+          # so the iPhoneOS SDK discovery came back empty. Reset it
+          # (spike-s4 pattern) before the probe script runs.
+          sudo xcode-select -s /Applications/Xcode.app || true
+          xcodebuild -version || true
           df -h
 
       - name: Download foundations tarball (input run)

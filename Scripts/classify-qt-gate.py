@@ -51,7 +51,7 @@ DEP_PATTERNS = [
     (r"Matplotlib|matplotlib", "Matplotlib (python runtime check)"),
 ]
 CONFIG_PATTERNS = [
-    (r"GLU|OpenGL", "OpenGL/GLU: iOS has no GLU — gl4es companion GLU (S4) or a probe seed; SetupOpenGL.cmake fatals pre-Qt"),
+    (r"GLU|OpenGL|GLESv2|\bEGL\b", "OpenGL/GLU/GLES: iOS SDK resolution + gl4es companion GLU (S4) or a probe seed; SetupOpenGL.cmake fatals pre-Qt"),
     (r"try_run|TRY_RUN|Check.*does not|check_cxx|test.*failed", "try-run / feature introspection under cross-compile — seed or disable, feedstock-style"),
     (r"Qt6?[A-Z]\w*.*NOTFOUND|Qt6.*not found|Could NOT find Qt", "Qt component resolution (host-path / kit module)"),
 ]

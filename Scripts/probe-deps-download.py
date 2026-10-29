@@ -33,6 +33,22 @@ KINDS = {
 }
 
 
+class _StripAuthRedirect(urllib.request.HTTPRedirectHandler):
+    """Artifact downloads 302 to Azure blob storage, which REJECTS the
+    GitHub Authorization header (401). Strip it on redirect. (Run
+    40946217444: the python artifact was found but every download
+    failed 401 because urllib forwards auth across the redirect.)"""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        new = super().redirect_request(req, fp, code, msg, headers, newurl)
+        if new is not None:
+            new.remove_header("Authorization")
+        return new
+
+
+_OPENER = urllib.request.build_opener(_StripAuthRedirect)
+
+
 def call(path, raw=False):
     req = urllib.request.Request(API + path, headers={
         "Accept": "application/vnd.github+json",
@@ -40,15 +56,10 @@ def call(path, raw=False):
         "Authorization": f"Bearer {os.environ['GH_TOKEN']}",
     })
     try:
-        with urllib.request.urlopen(req, timeout=120) as resp:
+        with _OPENER.open(req, timeout=300) as resp:
             body = resp.read()
             return resp.status, (body if raw else json.loads(body or b"{}"))
     except urllib.error.HTTPError as e:
-        if e.code in (301, 302, 303, 307, 308):
-            loc = e.headers["Location"]
-            req2 = urllib.request.Request(loc)  # no auth on the signed URL
-            with urllib.request.urlopen(req2, timeout=300) as resp:
-                return resp.status, resp.read()
         body = e.read()
         try:
             return e.code, (body if raw else json.loads(body or b"{}"))
