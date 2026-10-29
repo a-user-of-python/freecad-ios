@@ -19,9 +19,12 @@ jobs:
         run: |
           df -h
           sudo rm -rf /usr/share/dotnet /opt/ghc 2>/dev/null || true
-          for x in /Applications/Xcode_*.app; do
-            [ "$x" = "/Applications/Xcode.app" ] || sudo rm -rf "$x"
-          done 2>/dev/null || true
+          # Do NOT delete sibling Xcode bundles: on run 40917792862 that
+          # orphaned xcode-select (simctl vanished, CMake's Xcode
+          # generator failed with "Xcode 1.5 not supported"). The
+          # runner has ~100 GB free; no space pressure justifies it.
+          sudo xcode-select -s /Applications/Xcode.app || true
+          xcodebuild -version
           df -h
           xcrun simctl list devices available | head -30
 
@@ -47,9 +50,12 @@ jobs:
         run: |
           df -h
           sudo rm -rf /usr/share/dotnet /opt/ghc 2>/dev/null || true
-          for x in /Applications/Xcode_*.app; do
-            [ "$x" = "/Applications/Xcode.app" ] || sudo rm -rf "$x"
-          done 2>/dev/null || true
+          # Do NOT delete sibling Xcode bundles: on run 40917792862 that
+          # orphaned xcode-select (simctl vanished, CMake's Xcode
+          # generator failed with "Xcode 1.5 not supported"). The
+          # runner has ~100 GB free; no space pressure justifies it.
+          sudo xcode-select -s /Applications/Xcode.app || true
+          xcodebuild -version
           df -h
           xcrun simctl list devices available | head -30
 

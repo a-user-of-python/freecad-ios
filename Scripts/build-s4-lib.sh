@@ -67,13 +67,16 @@ build_gl4es() {
 	local out="$S4_PREFIX/$arch/lib"
 	if [ -f "$out/libGL.a" ]; then echo "== gl4es ($arch) already built"; return 0; fi
 	echo "== building gl4es ($arch, PLATFORM=$plat, NOX11/NOEGL/STATICLIB, DEFAULT_ES=2)"
+	# NOTE: recipe says -G Xcode; we use Ninja (same toolchain + flags)
+	# because the runner's Xcode-generator support broke when sibling
+	# Xcode bundles were removed (run 40917792862 Tier 0 failure #1).
 	rm -rf "$S4_WORK/gl4es-$arch"
-	cmake -S "$S4_SRC/gl4es" -B "$S4_WORK/gl4es-$arch" -G Xcode \
+	cmake -S "$S4_SRC/gl4es" -B "$S4_WORK/gl4es-$arch" -G Ninja \
 		-DCMAKE_TOOLCHAIN_FILE="$S4_SRC/ios-cmake/ios.toolchain.cmake" \
 		-DPLATFORM="$plat" -DDEPLOYMENT_TARGET=17.0 \
 		-DNOX11=ON -DNOEGL=ON -DSTATICLIB=ON -DDEFAULT_ES=2 \
 		-DCMAKE_BUILD_TYPE=Release
-	cmake --build "$S4_WORK/gl4es-$arch" --config Release --target GL
+	cmake --build "$S4_WORK/gl4es-$arch" --target GL
 	local lib
 	lib="$(find "$S4_WORK/gl4es-$arch" -name 'libGL.a' | head -1)"
 	[ -n "$lib" ] || { echo "ERROR: libGL.a not produced for $arch" >&2; find "$S4_WORK/gl4es-$arch" -name '*.a' >&2; exit 1; }
