@@ -242,16 +242,21 @@ build_coin() {
 }
 
 # configure_app <srcdir> <builddir> <device|sim> [extra cmake -D args...]
+# Qt's iOS toolchain selects device vs simulator via QT_UIKIT_SDK —
+# passing CMAKE_OSX_SYSROOT alone left the kit's device-built plugin
+# init objects in a simulator link (run 40938941484 Tier 0:
+# "building for iOS-simulator, but linking in object file built for
+# iOS"). QT_UIKIT_SDK is the toolchain's own switch.
 configure_app() {
 	local src="$1" bld="$2" arch="$3"; shift 3
-	local sysroot=iphoneos
-	[ "$arch" = sim ] && sysroot=iphonesimulator
+	local uikit=iphoneos
+	[ "$arch" = sim ] && uikit=iphonesimulator
 	rm -rf "$bld"
 	cmake -S "$src" -B "$bld" -G Ninja \
 		-DCMAKE_TOOLCHAIN_FILE="$QT_IOS/lib/cmake/Qt6/qt.toolchain.cmake" \
 		-DQT_HOST_PATH="$QT_DESKTOP" \
+		-DQT_UIKIT_SDK="$uikit" \
 		-DCMAKE_PREFIX_PATH="$QT_IOS" -DQt6_DIR="$QT_IOS/lib/cmake/Qt6" \
-		-DCMAKE_OSX_SYSROOT="$sysroot" \
 		-DCMAKE_OSX_DEPLOYMENT_TARGET=17.0 \
 		-DCMAKE_BUILD_TYPE=Release \
 		-DS4_PREFIX="$S4_PREFIX" "$@"
