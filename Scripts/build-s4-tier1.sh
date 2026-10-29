@@ -24,7 +24,8 @@ echo "1fba830dbb58c67c88222b375d336e721f03e728cdb0392b4080f6ef02fea0c4  $FC_TARB
 FC_SRC="$S4_WORK/freecad-weekly"
 if [ ! -d "$FC_SRC/src/Gui/Quarter" ]; then
 	rm -rf "$FC_SRC"; mkdir -p "$FC_SRC"
-	tar -xzf "$FC_TARBALL" -C "$FC_SRC" src/Gui/Quarter
+	tar -xzf "$FC_TARBALL" -C "$FC_SRC" src/Gui/Quarter \
+		src/Gui/Inventor/SoMouseWheelEvent.h src/Gui/Inventor/SoMouseWheelEvent.cpp
 fi
 ls "$FC_SRC/src/Gui/Quarter" | head
 # vendored-coin version note for the verdict (submodule src/3rdParty/coin)

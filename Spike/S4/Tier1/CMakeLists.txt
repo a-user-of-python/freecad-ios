@@ -36,6 +36,8 @@ set(QUARTER_DIR "${FREECAD_SRC_DIR}/src/Gui/Quarter")
 file(GLOB_RECURSE QUARTER_SOURCES
   "${QUARTER_DIR}/*.cpp")
 list(REMOVE_ITEM QUARTER_SOURCES "${QUARTER_DIR}/SpaceNavigatorDevice.cpp")
+# FreeCAD-side Inventor extension Quarter depends on (not part of Coin):
+list(APPEND QUARTER_SOURCES "${FREECAD_SRC_DIR}/src/Gui/Inventor/SoMouseWheelEvent.cpp")
 file(GLOB_RECURSE QUARTER_HEADERS "${QUARTER_DIR}/*.h")
 
 add_library(Quarter STATIC ${QUARTER_SOURCES} ${QUARTER_HEADERS})
