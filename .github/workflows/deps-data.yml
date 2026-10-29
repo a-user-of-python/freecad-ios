@@ -8,6 +8,10 @@ on:
       - "Scripts/build-data.sh"
       - ".github/workflows/deps-data.yml"
 
+concurrency:
+  group: deps-data-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   build:
     name: iosdeps-data tarball
