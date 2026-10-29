@@ -136,13 +136,13 @@ fetch "https://archive.apache.org/dist/xerces/c/3/sources/xerces-c-3.3.0.tar.gz"
 # (also system facilities, still no ICU) and record which one won.
 XERCES_TRANSCODER="gnuiconv"
 if ! cmake -S "$SRCDIR/xerces-c-3.3.0" -B "$WORK/build-xerces" -G Ninja "${COMMON[@]}" \
-	-Dtranscoder=gnuiconv -Dnetwork=OFF -DBUILD_TESTING=OFF >"$WORK/xerces-config-gnuiconv.log" 2>&1; then
+	-Dtranscoder=gnuiconv -Dnetwork=OFF -DBUILD_TESTING=OFF -DCMAKE_MACOSX_BUNDLE=OFF >"$WORK/xerces-config-gnuiconv.log" 2>&1; then
 	echo "== xerces gnuiconv transcoder unavailable; falling back to iconv"
 	cat "$WORK/xerces-config-gnuiconv.log"
 	rm -rf "$WORK/build-xerces"
 	XERCES_TRANSCODER="iconv"
 	cmake -S "$SRCDIR/xerces-c-3.3.0" -B "$WORK/build-xerces" -G Ninja "${COMMON[@]}" \
-		-Dtranscoder=iconv -Dnetwork=OFF -DBUILD_TESTING=OFF
+		-Dtranscoder=iconv -Dnetwork=OFF -DBUILD_TESTING=OFF -DCMAKE_MACOSX_BUNDLE=OFF
 fi
 echo "== building xerces (transcoder=$XERCES_TRANSCODER)"
 cmake --build "$WORK/build-xerces" -j"$NCPU"
