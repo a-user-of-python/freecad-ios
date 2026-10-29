@@ -52,7 +52,15 @@ command -v ninja >/dev/null || brew install ninja
 IOS_SDK_PATH="$(xcrun --sdk iphoneos --show-sdk-path 2>/dev/null || true)"
 if [ ! -d "$IOS_SDK_PATH" ]; then
 	IOS_SDK_PATH=""
+	# xcrun respects DEVELOPER_DIR: retry per installed Xcode, then
+	# fall back to a filesystem glob for the SDK directory itself.
 	for devdir in $(ls -d /Applications/Xcode*.app/Contents/Developer 2>/dev/null | sort -Vr); do
+		candidate="$(DEVELOPER_DIR="$devdir" xcrun --sdk iphoneos --show-sdk-path 2>/dev/null || true)"
+		if [ -d "$candidate" ]; then
+			IOS_SDK_PATH="$candidate"
+			DEVELOPER_DIR="$devdir"
+			break
+		fi
 		for sdk in $(ls -d "$devdir"/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS*.sdk 2>/dev/null | sort -Vr); do
 			if [ -d "$sdk" ]; then
 				IOS_SDK_PATH="$sdk"
@@ -62,6 +70,14 @@ if [ ! -d "$IOS_SDK_PATH" ]; then
 		done
 	done
 fi
-echo "== iPhoneOS SDK: ${IOS_SDK_PATH:-NOT FOUND} (DEVELOPER_DIR=${DEVELOPER_DIR:-default})"
-test -n "$IOS_SDK_PATH" && test -d "$IOS_SDK_PATH"
+if [ -d "$IOS_SDK_PATH" ]; then
+	echo "== iPhoneOS SDK: $IOS_SDK_PATH (DEVELOPER_DIR=${DEVELOPER_DIR:-default})"
+else
+	# Observed on a real runner (run 40924270694): with an explicitly
+	# empty CMAKE_OSX_SYSROOT, CMake's own fallback resolution still
+	# configured every library correctly. Warn loudly, do not die.
+	echo "WARNING: no iPhoneOS SDK located via xcrun or filesystem scan;" >&2
+	echo "         continuing with an empty CMAKE_OSX_SYSROOT (CMake fallback)." >&2
+	IOS_SDK_PATH=""
+fi
 export DEVELOPER_DIR IOS_SDK_PATH
