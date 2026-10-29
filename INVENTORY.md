@@ -34,6 +34,32 @@ and the patch series.
 - **Eigen version:** open (3.4 staged vs pinning's 5.0.1 ABI line) —
   settled at the S7 configure; see PIN.md.
 
+## CI decisions (Front 6 audit dispositions, 2026-10-29)
+
+Full audit: goal workspace `hidden_files/research/ci-readiness.md`.
+- **Fixed by the audit** (commit `71854939`): D1 ccache key collision/
+  frozen cache, D2 masked core-artifact download, D5 xcode-select
+  reset after sibling-Xcode deletion, D7 smoke timeout (60 min).
+- **Fixed by the coordinator** (surgical commits, tree-verified):
+  **D8** — every workflow now has a `concurrency:` group
+  (`<workflow>-<ref>`, `cancel-in-progress: false`): one running + one
+  pending per workflow; re-dispatches replace the pending run instead
+  of stacking duplicates. **D9** — `deps-foundations` hash + trigger
+  paths now include `Scripts/qt-install.inc.sh`. **D4** —
+  `build-freecad.yml` takes optional `workflow_dispatch` run-id inputs
+  (foundations/occt/python/data) and downloads each dep tarball from
+  that run (the old pattern-only download could only ever see the
+  current run's artifacts, i.e. none), with a one-tarball-per-family
+  assertion against cross-generation mixing. **D6** — the shell IPA
+  artifact is renamed `FreeCAD-unsigned-SHELL`; **whoever lands the
+  real Stage-7 `build-freecad.sh` flips it back to
+  `FreeCAD-unsigned` in the same change.**
+- **Reported, owned elsewhere:** D3 — ccache is cached but never wired
+  to a compiler (`CMAKE_*_COMPILER_LAUNCHER` absent); until the
+  Stage-7 script body lands it, every build-freecad run is effectively
+  cold. Deps ccache recommended for foundations + OCCT when their
+  scripts next change (spine/OCCT owners).
+
 ## Patch series
 
 None yet. Every future patch: numbered (`NNNN-short-name.patch`),
