@@ -43,6 +43,7 @@ target_compile_definitions(Quarter PRIVATE QUARTER_INTERNAL)
 target_include_directories(Quarter PUBLIC
   "${CMAKE_CURRENT_SOURCE_DIR}/fcshim"  # FIRST: Base/* + FCConfig.h spike shims win over FreeCAD's real Base headers
   "${FREECAD_SRC_DIR}/src"          # for <Gui/Quarter/...> includes
+  "${FREECAD_SRC_DIR}/src/Gui"      # for <Quarter/Basic.h> style includes (Quarter's own)
   "${QUARTER_DIR}"                  # for local "QuarterWidget.h" style includes
   "${S4_ARCH_PREFIX}/include"       # Coin headers
   "${GL4ES_INC}"                    # <GL/gl.h> == gl4es
