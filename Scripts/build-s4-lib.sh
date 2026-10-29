@@ -261,6 +261,16 @@ configure_app() {
 	# set the sysroot but kept device plugin-init objects. Pass both.)
 	echo "== Qt toolchain SDK-selection machinery:"
 	grep -n "UIKIT\|iphonesimulator\|CMAKE_OSX_SYSROOT" "$QT_IOS/lib/cmake/Qt6/qt.toolchain.cmake" | head -25 || true
+	if [ "$arch" = sim ]; then
+		echo "== Qt plugin-init object evidence (fix-9 probe):"
+		find "$QT_IOS/plugins" -maxdepth 3 -type d -name "objects*" | head -10 || true
+		_f=$(find "$QT_IOS/plugins" -name "QGifPlugin_init.cpp.o" | head -1)
+		echo "init object: $_f"; file "$_f" 2>/dev/null || true; lipo -info "$_f" 2>/dev/null || true
+		_c=$(find "$QT_IOS/plugins" -name "QGifPlugin_init.cpp" | head -1)
+		echo "init source present: $_c"
+		grep -rn "objects-Release" "$QT_IOS/lib/cmake/Qt6Widgets/"*.cmake 2>/dev/null | head -5 || true
+		grep -rln "_init" "$QT_IOS/lib/cmake/" 2>/dev/null | head -5 || true
+	fi
 	rm -rf "$bld"
 	cmake -S "$src" -B "$bld" -G Ninja \
 		-DCMAKE_TOOLCHAIN_FILE="$QT_IOS/lib/cmake/Qt6/qt.toolchain.cmake" \
