@@ -12,6 +12,10 @@ on:
       - "Spike/S3/**"
       - ".github/workflows/spike-s3.yml"
 
+concurrency:
+  group: spike-s3-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   spike:
     name: S3 embedding proof (simulator)
