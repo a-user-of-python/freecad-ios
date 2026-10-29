@@ -5,15 +5,20 @@
 # the iOS kit's qt.toolchain.cmake + QT_HOST_PATH, deployment target
 # 17.0, in order:
 #   zlib 1.3.1 -> FreeType 2.13.3 -> HarfBuzz 10.4.0 -> yaml-cpp 0.8.0
-#   -> Xerces-C 3.3.0 -> Eigen 3.4.0 (headers copied) -> Boost 1.88.0
-#   (program_options, thread, date_time as compiled .a; regex is
-#   header-only INTERFACE in 1.88's CMake build — see Boost section).
+#   -> Xerces-C 3.3.0 -> ICU 78.1 -> Eigen 3.4.0 (headers copied)
+#   -> Boost 1.88.0 (program_options, thread, date_time as compiled
+#   .a; regex is header-only INTERFACE in 1.88's CMake build — see
+#   Boost section). ICU is the one non-CMake stage: it cross-builds
+#   with its own autoconf recipe (host build + --with-cross-build),
+#   driven by the same SDK / deployment target — see the ICU section.
 #
 # Xerces-C transcoder choice: Xerces-C 3.3.0's CMake offers icu /
 # macosunicodeconverter / gnuiconv / iconv / windows — there is NO
 # built-in transcoder option in 3.3.0, so this stage uses
-# transcoder=gnuiconv, i.e. the SYSTEM iconv in the iOS SDK. NO ICU
-# is built or linked. Network accessor is OFF.
+# transcoder=gnuiconv, i.e. the SYSTEM iconv in the iOS SDK. Xerces
+# itself links NO ICU (the separate ICU stage below exists for
+# FreeCAD's own top-level find_package(ICU), not for Xerces).
+# Network accessor is OFF.
 #
 # Boost route: Boost's own CMake superproject build with
 # BOOST_INCLUDE_LIBRARIES — NOT b2 (b2's darwin toolset grabs the
@@ -130,11 +135,12 @@ build_cmake "yaml-cpp" "$SRCDIR/yaml-cpp-0.8.0" \
 verify_lib "yaml-cpp" "lib/libyaml-cpp.a" "YAML"
 
 # ---------------------------------------------------------- Xerces-C 3.3.0
-# Transcoder: gnuiconv = system iconv (see header). NO ICU.
+# Transcoder: gnuiconv = system iconv (see header); Xerces links no ICU.
 fetch "https://archive.apache.org/dist/xerces/c/3/sources/xerces-c-3.3.0.tar.gz" "xerces-c-3.3.0"
 # gnuiconv availability depends on the SDK iconv probe at configure
 # time; if it is not offered, fall back to the plain iconv transcoder
-# (also system facilities, still no ICU) and record which one won.
+# (also system facilities; Xerces never links ICU either way) and
+# record which one won.
 XERCES_TRANSCODER="gnuiconv"
 if ! cmake -S "$SRCDIR/xerces-c-3.3.0" -B "$WORK/build-xerces" -G Ninja "${COMMON[@]}" \
 	-Dtranscoder=gnuiconv -Dnetwork=OFF -DBUILD_TESTING=OFF -DCMAKE_MACOSX_BUNDLE=OFF >"$WORK/xerces-config-gnuiconv.log" 2>&1; then
@@ -151,6 +157,210 @@ cmake --install "$WORK/build-xerces"
 XERCES_A="$(find "$PREFIX/lib" -name "libxerces-c*.a" | head -1)"
 test -n "$XERCES_A"
 verify_lib "xerces" "${XERCES_A#"$PREFIX"/}" "xercesc"
+
+# ---------------------------------------------------------- ICU 78.1
+# WHY: the pinned FreeCAD snapshot's top-level CMakeLists.txt:98 runs
+# find_package(ICU REQUIRED COMPONENTS uc i18n) BEFORE the Qt stage.
+# The Qt-gate probe (goal research/qt-gate-probe.md, definitive run
+# 40971926782) proved CMake's FindICU in cross mode CANNOT be
+# satisfied by the iOS SDK's libicucore: seven seeding layouts were
+# tried, all failed — no iOS uc/i18n libraries exist in the SDK in a
+# form FindICU accepts. A real iOS ICU build is therefore required;
+# it gates the probe's Phase 2 and Stage 7's configure identically.
+#
+# VERSION PIN (verified 2026-10-29 against the GitHub release API):
+# the probe evidence saw host icu4c 78.1 (the Homebrew icu4c on the
+# runners), and 78.1 is the initial ICU 78 release (2025-10-30,
+# Unicode 17 / CLDR 48). Later releases exist (78.2 / 78.3
+# maintenance, 79.1) but the pin of record is the probe's 78.1.
+#   URL:    https://github.com/unicode-org/icu/releases/download/release-78.1/icu4c-78.1-sources.tgz
+#   Size:   27,979,449 bytes (release asset metadata)
+#   sha256: 6217f58ca39b23127605cfc6c7e0d3475fe4b0d63157011383d716cb41617886
+#           (the release API's own published asset digest; re-verified
+#           in-script on every download below)
+#
+# DATA CHOICE: FULL data library. The target is configured with
+# --with-data-packaging=library, so the complete CLDR/Unicode data
+# set is compiled into libicudata.a (tens of MB — a stub would be
+# ~10 KB, and the size is asserted after install). The alternative,
+# stubdata (an empty libicudata plus an external .dat file the app
+# must locate and load at runtime), was rejected: an iOS app bundle
+# has no reliable external-data path, and FreeCAD's consumers need
+# working uc/i18n behaviour, not just link symbols. With the full
+# library the prefix is self-contained: libicudata.a + libicuuc.a +
+# libicui18n.a resolve every uc/i18n symbol at link time.
+#
+# RECIPE (standard ICU cross-build; ICU is autoconf, not CMake, so
+# the Qt toolchain file does not apply — the SDK path, deployment
+# target 17.0 and static-only shape mirror the CMake stages):
+#   1. host build (native macOS) of the same tarball — produces the
+#      build tools the target build runs (pkgdata, genrb, icupkg,
+#      makeconv, ...). Static, samples/tests off.
+#   2. target configure from a separate build dir:
+#      --host=arm-apple-darwin --with-cross-build=<host build dir>,
+#      CC/CXX = the iphoneos clang/clang++ (via xcrun, honouring the
+#      DEVELOPER_DIR exported by qt-install.inc.sh), flags carry
+#      -arch arm64 -isysroot $IOS_SDK_PATH -miphoneos-version-min=17.0,
+#      --enable-static --disable-shared, install into $PREFIX.
+# Default symbol renaming is KEPT (u_strlen -> u_strlen_78 etc.):
+# consumers compile against these same headers, and renaming matches
+# the host Homebrew 78.1 the probe observed.
+ICU_VERSION="78.1"
+ICU_URL="https://github.com/unicode-org/icu/releases/download/release-78.1/icu4c-78.1-sources.tgz"
+ICU_SHA256="6217f58ca39b23127605cfc6c7e0d3475fe4b0d63157011383d716cb41617886"
+echo "== ICU $ICU_VERSION: fetching $ICU_URL"
+if [ ! -f "$SRCDIR/icu-78.1-source/runConfigureICU" ]; then
+	curl -fsSL --retry 3 -o "$WORK/icu-sources.tgz" "$ICU_URL"
+	ICU_ACTUAL="$(shasum -a 256 "$WORK/icu-sources.tgz" | awk '{print $1}')"
+	echo "   sha256 expected: $ICU_SHA256"
+	echo "   sha256 actual:   $ICU_ACTUAL"
+	[ "$ICU_ACTUAL" = "$ICU_SHA256" ] || { echo "ERROR: ICU tarball sha256 mismatch" >&2; exit 1; }
+	rm -rf "$SRCDIR/.extract-icu"; mkdir -p "$SRCDIR/.extract-icu"
+	tar -xzf "$WORK/icu-sources.tgz" -C "$SRCDIR/.extract-icu"
+	rm -f "$WORK/icu-sources.tgz"
+	# Locate icu4c/source without assuming the tarball's top-dir name
+	# (release tarballs unpack to icu/source; be liberal anyway).
+	ICU_FOUND=""
+	for cand in "$SRCDIR/.extract-icu/icu/source" "$SRCDIR/.extract-icu/icu4c/source" "$SRCDIR/.extract-icu/source"; do
+		if [ -f "$cand/runConfigureICU" ]; then ICU_FOUND="$cand"; break; fi
+	done
+	if [ -z "$ICU_FOUND" ]; then
+		ICU_FOUND="$(dirname "$(find "$SRCDIR/.extract-icu" -name runConfigureICU -print -quit)")"
+	fi
+	[ -n "$ICU_FOUND" ] && [ -f "$ICU_FOUND/configure" ] || { echo "ERROR: icu4c source dir not found in tarball" >&2; exit 1; }
+	mv "$ICU_FOUND" "$SRCDIR/icu-78.1-source"
+	rm -rf "$SRCDIR/.extract-icu"
+fi
+ICU_SRC="$SRCDIR/icu-78.1-source"
+echo "   icu4c source: $ICU_SRC"
+
+echo "== ICU host build (native macOS; provides the cross-build tools)"
+ICU_HOST_BUILD="$WORK/build-icu-host"
+rm -rf "$ICU_HOST_BUILD" "$WORK/icu-host-prefix"; mkdir -p "$ICU_HOST_BUILD"
+(
+	cd "$ICU_HOST_BUILD"
+	"$ICU_SRC/configure" --prefix="$WORK/icu-host-prefix" \
+		--enable-static --disable-shared \
+		--disable-samples --disable-tests
+) > "$WORK/icu-host-configure.log" 2>&1 || { echo "ERROR: ICU host configure failed" >&2; tail -30 "$WORK/icu-host-configure.log" >&2; exit 1; }
+make -C "$ICU_HOST_BUILD" -j"$NCPU" > "$WORK/icu-host-build.log" 2>&1 || { echo "ERROR: ICU host build failed" >&2; tail -30 "$WORK/icu-host-build.log" >&2; exit 1; }
+test -f "$ICU_HOST_BUILD/config/icucross.mk" || { echo "ERROR: host build lacks config/icucross.mk (needed by --with-cross-build)" >&2; exit 1; }
+test -x "$ICU_HOST_BUILD/bin/pkgdata" || { echo "ERROR: host build lacks bin/pkgdata" >&2; exit 1; }
+echo "   host tools OK (pkgdata, icucross.mk present)"
+
+# SDK for the target: qt-install.inc.sh resolved IOS_SDK_PATH and
+# exported DEVELOPER_DIR. ICU's autoconf configure cannot fall back
+# the way CMake can — it needs a real sysroot — so recover once
+# (xcode-select reset + filesystem scan, the probe's pattern) and
+# fail loudly if there is genuinely no iPhoneOS SDK on this runner.
+if [ -z "${IOS_SDK_PATH:-}" ] || [ ! -d "$IOS_SDK_PATH" ]; then
+	echo "== ICU: iPhoneOS SDK recovery (inc returned '${IOS_SDK_PATH:-empty}')"
+	if [ -d /Applications/Xcode.app ]; then
+		sudo xcode-select -s /Applications/Xcode.app 2>/dev/null || true
+		IOS_SDK_PATH="$(xcrun --sdk iphoneos --show-sdk-path 2>/dev/null || true)"
+	fi
+	if [ -z "${IOS_SDK_PATH:-}" ] || [ ! -d "$IOS_SDK_PATH" ]; then
+		IOS_SDK_PATH=""
+		for devdir in /Applications/Xcode*.app/Contents/Developer; do
+			[ -d "$devdir" ] || continue
+			candidate="$(DEVELOPER_DIR="$devdir" xcrun --sdk iphoneos --show-sdk-path 2>/dev/null || true)"
+			if [ -d "$candidate" ]; then IOS_SDK_PATH="$candidate"; DEVELOPER_DIR="$devdir"; break; fi
+			for sdk in "$devdir"/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS*.sdk; do
+				if [ -d "$sdk" ]; then IOS_SDK_PATH="$sdk"; DEVELOPER_DIR="$devdir"; break 2; fi
+			done
+		done
+	fi
+	export DEVELOPER_DIR IOS_SDK_PATH
+	echo "   recovered SDK: '${IOS_SDK_PATH:-STILL EMPTY}'"
+fi
+[ -n "${IOS_SDK_PATH:-}" ] && [ -d "$IOS_SDK_PATH" ] || { echo "ERROR: ICU target build needs a real iPhoneOS SDK; none found on this runner" >&2; exit 1; }
+
+echo "== ICU target build (iOS arm64, sysroot $IOS_SDK_PATH)"
+ICU_CC="$(xcrun --sdk iphoneos --find clang 2>/dev/null || command -v clang)"
+ICU_CXX="$(xcrun --sdk iphoneos --find clang++ 2>/dev/null || command -v clang++)"
+ICU_AR="$(xcrun --sdk iphoneos --find ar 2>/dev/null || command -v ar)"
+ICU_RANLIB="$(xcrun --sdk iphoneos --find ranlib 2>/dev/null || command -v ranlib)"
+ICU_TARGET_FLAGS="-arch arm64 -isysroot $IOS_SDK_PATH -miphoneos-version-min=17.0"
+ICU_IOS_BUILD="$WORK/build-icu-ios"
+rm -rf "$ICU_IOS_BUILD"; mkdir -p "$ICU_IOS_BUILD"
+(
+	cd "$ICU_IOS_BUILD"
+	env CC="$ICU_CC" CXX="$ICU_CXX" AR="$ICU_AR" RANLIB="$ICU_RANLIB" \
+		CFLAGS="$ICU_TARGET_FLAGS -O2" \
+		CXXFLAGS="$ICU_TARGET_FLAGS -O2 -std=c++17" \
+		CPPFLAGS="-isysroot $IOS_SDK_PATH" \
+		LDFLAGS="$ICU_TARGET_FLAGS" \
+		"$ICU_SRC/configure" \
+			--host=arm-apple-darwin \
+			--with-cross-build="$ICU_HOST_BUILD" \
+			--prefix="$PREFIX" \
+			--enable-static --disable-shared \
+			--with-data-packaging=library \
+			--disable-samples --disable-tests --disable-extras
+) > "$WORK/icu-ios-configure.log" 2>&1 || { echo "ERROR: ICU target configure failed" >&2; tail -30 "$WORK/icu-ios-configure.log" >&2; exit 1; }
+make -C "$ICU_IOS_BUILD" -j"$NCPU" > "$WORK/icu-ios-build.log" 2>&1 || { echo "ERROR: ICU target build failed" >&2; tail -30 "$WORK/icu-ios-build.log" >&2; exit 1; }
+make -C "$ICU_IOS_BUILD" install > "$WORK/icu-ios-install.log" 2>&1 || { echo "ERROR: ICU target install failed" >&2; tail -30 "$WORK/icu-ios-install.log" >&2; exit 1; }
+# Symbol greps are prefix substrings on purpose: default ICU renaming
+# exports u_strlen_78 / unum_open_78 / icudt78l_dat, all matched here.
+verify_lib "icuuc" "lib/libicuuc.a" "u_strlen"
+verify_lib "icui18n" "lib/libicui18n.a" "unum_open"
+verify_lib "icudata" "lib/libicudata.a" "icudt"
+# Full-data proof: the stub library is ~10 KB; the full data library
+# for 78.1 is tens of MB. Anything under 5 MB means the data did not
+# actually get compiled in, whatever configure claimed.
+ICU_DATA_SIZE="$(stat -f %z "$PREFIX/lib/libicudata.a" 2>/dev/null || stat -c %s "$PREFIX/lib/libicudata.a")"
+echo "   libicudata.a size: $ICU_DATA_SIZE bytes (full data library, NOT stubdata)"
+[ "$ICU_DATA_SIZE" -gt 5000000 ] || { echo "ERROR: libicudata.a is stub-sized ($ICU_DATA_SIZE B); full data was not built" >&2; exit 1; }
+
+# FindICU proof — the exact operation the probe showed failing with
+# the SDK's libicucore: a CMake project that runs
+# find_package(ICU REQUIRED COMPONENTS uc i18n) under the iOS
+# toolchain against THIS prefix and LINKS a program calling
+# u_strlen + u_errorName. PkgConfig discovery is disabled so the
+# host's Homebrew icu4c 78.1 cannot masquerade as a find result, and
+# the resolved library paths are asserted to live under $PREFIX —
+# FINDICU-OK therefore means OUR iOS libraries satisfied FindICU.
+echo "== FindICU probe (find_package(ICU uc i18n) + link, iOS toolchain)"
+ICU_PROBE="$WORK/icu-probe"
+rm -rf "$ICU_PROBE"; mkdir -p "$ICU_PROBE"
+cat > "$ICU_PROBE/CMakeLists.txt" <<'EOF'
+cmake_minimum_required(VERSION 3.20)
+project(icu_findicu_probe CXX)
+find_package(ICU REQUIRED COMPONENTS uc i18n)
+add_executable(icu_probe main.cpp)
+target_link_libraries(icu_probe PRIVATE ICU::uc ICU::i18n)
+EOF
+cat > "$ICU_PROBE/main.cpp" <<'EOF'
+#include <unicode/ustring.h>
+#include <unicode/utypes.h>
+#include <cstdio>
+#include <cstring>
+int main() {
+    const UChar s[] = {0x0048, 0x0069, 0x0000};
+    const int32_t n = u_strlen(s);
+    const char *e = u_errorName(U_ZERO_ERROR);
+    std::printf("u_strlen=%d u_errorName=%s\n", (int)n, e);
+    return (n == 2 && std::strcmp(e, "U_ZERO_ERROR") == 0) ? 0 : 1;
+}
+EOF
+cmake -S "$ICU_PROBE" -B "$WORK/build-icu-probe" -G Ninja "${COMMON[@]}" \
+	-DICU_ROOT="$PREFIX" \
+	-DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=TRUE \
+	> "$WORK/icu-probe-configure.log" 2>&1 || { echo "ERROR: FindICU probe configure failed" >&2; cat "$WORK/icu-probe-configure.log" >&2; exit 1; }
+grep -i "Found ICU" "$WORK/icu-probe-configure.log" || true
+grep -E "ICU.*(LIBRARY|LIBRARIES)" "$WORK/build-icu-probe/CMakeCache.txt" || true
+# The resolved uc/i18n libraries must be THIS prefix's iOS archives —
+# checked against both the cache and the generated link line so the
+# assertion does not depend on FindICU's internal cache-var naming.
+for iculib in libicuuc libicui18n; do
+	grep -q "$PREFIX/lib/$iculib" "$WORK/build-icu-probe/CMakeCache.txt" "$WORK/build-icu-probe/build.ninja" 2>/dev/null \
+		|| { echo "ERROR: FindICU did not resolve $iculib from the iOS prefix (host masquerade?)" >&2; exit 1; }
+done
+cmake --build "$WORK/build-icu-probe" -j"$NCPU" > "$WORK/icu-probe-build.log" 2>&1 || { echo "ERROR: FindICU probe link failed" >&2; cat "$WORK/icu-probe-build.log" >&2; exit 1; }
+ICU_PROBE_BIN="$(find "$WORK/build-icu-probe" -name icu_probe -type f | head -1)"
+test -n "$ICU_PROBE_BIN"
+file "$ICU_PROBE_BIN" | grep -q "arm64" || { echo "ERROR: FindICU probe binary is not arm64" >&2; exit 1; }
+echo "FINDICU-OK (find_package(ICU uc i18n) satisfied by $PREFIX; probe links u_strlen + u_errorName; binary is arm64)"
 
 # ---------------------------------------------------------- Eigen 3.4.0 (headers)
 fetch "https://gitlab.com/libeigen/eigen/-/archive/3.4.0/eigen-3.4.0.tar.gz" "eigen-3.4.0"
@@ -216,7 +426,8 @@ ls -lh "$TARBALL"
 	echo "Qt (toolchain): $QT_VERSION (ios kit $QT_IOS, host $QT_DESKTOP)"
 	echo "Prefix: ios-prefix/ (static, iOS arm64, deployment target 17.0)"
 	echo "Libraries: zlib 1.3.1, FreeType 2.13.3, HarfBuzz 10.4.0, yaml-cpp 0.8.0,"
-	echo "  Xerces-C 3.3.0 (transcoder=$XERCES_TRANSCODER / system iconv, network OFF, no ICU),"
+	echo "  Xerces-C 3.3.0 (transcoder=$XERCES_TRANSCODER / system iconv, network OFF; Xerces links no ICU),"
+	echo "  ICU 78.1 (autoconf cross-build, host tools + arm-apple-darwin target; static uc/i18n + FULL data library, not stubdata; FindICU probe: FINDICU-OK),"
 	echo "  Eigen 3.4.0 (headers), Boost 1.88.0 (CMake -cmake asset; program_options/thread/date_time .a, regex header-only)"
 	echo "Tarball: dist/iosdeps-foundations-$DEPS_HASH.tar.zst"
 } | tee "$DIST/foundations-report.txt"
