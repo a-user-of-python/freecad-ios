@@ -6,7 +6,12 @@ on:
     paths:
       - "PIN.md"
       - "Scripts/build-foundations.sh"
+      - "Scripts/qt-install.inc.sh"
       - ".github/workflows/deps-foundations.yml"
+
+concurrency:
+  group: deps-foundations-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   build:
@@ -26,7 +31,7 @@ jobs:
           df -h
 
       - name: Compute content hash
-        run: echo "DEPS_HASH=${{ hashFiles('PIN.md', 'Scripts/build-foundations.sh') }}" >> "$GITHUB_ENV"
+        run: echo "DEPS_HASH=${{ hashFiles('PIN.md', 'Scripts/build-foundations.sh', 'Scripts/qt-install.inc.sh') }}" >> "$GITHUB_ENV"
 
       - name: Build foundations (static, iOS arm64)
         run: bash Scripts/build-foundations.sh
