@@ -18,6 +18,10 @@ on:
         description: "deps-python run id"
         required: true
 
+concurrency:
+  group: spike-s3-a2-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   a2:
     name: S3 A2 console stack (simulator)
