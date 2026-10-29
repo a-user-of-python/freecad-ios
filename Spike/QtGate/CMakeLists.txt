@@ -54,12 +54,15 @@ message(STATUS "QTGATE: all REQUIRED SetupQt components found")
 # host rcc answers "Zstandard support not compiled in" (its
 # --compress-algo accepts only [zlib], none) — a [CONFIG] item whose
 # remedy is FreeCAD's own cache variable
-# FREECAD_RCC_COMPRESSION_ALGO=zlib, NOT a Qt-API gap. The probe
-# script exercises the zstd form directly (rcc-zstd-probe.log,
-# non-fatal); this battery uses zlib so the version-branch TU below
-# actually compiles and links.
+# FREECAD_RCC_COMPRESSION_ALGO=zlib, NOT a Qt-API gap. RUN
+# 40965987519 added the paired half: level 19 is a zstd-only level
+# ("invalid compression level '19'"); zlib caps at 9, so the full
+# remedy pair is ALGO=zlib + LEVEL=9 (both FreeCAD cache vars).
+# The probe script exercises the zstd form directly
+# (rcc-zstd-probe.log, non-fatal); this battery uses zlib/9 so the
+# version-branch TU below actually compiles and links.
 qt_add_resources(QTGATE_RES_SRCS res.qrc
-    OPTIONS --compress-algo zlib --compress 19 --threshold 70)
+    OPTIONS --compress-algo zlib --compress 9 --threshold 70)
 message(STATUS "QTGATE: rcc resource step configured (zlib; zstd probed separately)")
 
 qt_add_executable(qtgate_battery main.cpp widget.ui ${QTGATE_RES_SRCS})

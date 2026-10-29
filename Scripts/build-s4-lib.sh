@@ -236,6 +236,7 @@ build_coin() {
 		-DCOIN_BUILD_EXAMPLES=OFF -DCOIN_BUILD_SHARED_LIBS=OFF \
 		-DCOIN_USE_QT=OFF \
 		-DHAVE_GL_GL_H=ON -DHAVE_GL_GLU_H=ON -DHAVE_GL_GLEXT_H=ON \
+		-DHAVE_DLD_LIB= -DHAVE_DYLD_RUNTIME_BINDING= \
 		-DOPENGL_INCLUDE_DIR="$S4_PREFIX/src/gl4es/include" \
 		-DOPENGL_gl_LIBRARY="$out/lib/libGL.a" \
 		-DOPENGL_glu_LIBRARY="$out/lib/libGLU.a" \
@@ -335,24 +336,38 @@ PY
 	xcrun simctl boot "$udid" 2>/dev/null || true
 	xcrun simctl bootstatus "$udid" -b
 	xcrun simctl install "$udid" "$app"
-	echo "== launching $bid (console captured; app self-quits)"
-	( sleep 7; xcrun simctl io "$udid" screenshot "$outdir/simulator-screenshot.png" 2>/dev/null || true ) &
-	local shotpid=$!
-	set +e
-	timeout 90 xcrun simctl launch --console-pty "$udid" "$bid" > "$outdir/app-console.log" 2>&1
-	echo "simctl launch exit: $?" | tee -a "$outdir/app-console.log"
-	set -e
-	wait $shotpid 2>/dev/null || true
-	ls -lh "$outdir/simulator-screenshot.png" 2>/dev/null || echo "WARNING: no screenshot"
 	local container
 	container="$(xcrun simctl get_app_container "$udid" "$bid" data 2>/dev/null || true)"
 	echo "app container: $container"
+	echo "== launching $bid (console captured; polling for result file)"
+	# NOTE: macOS has no GNU `timeout` — the fix-14 run died here with
+	# exit 127 and the app never launched. Launch in the background and
+	# poll the app container for the result file instead.
+	set +e
+	xcrun simctl launch --console-pty "$udid" "$bid" > "$outdir/app-console.log" 2>&1 &
+	local launchpid=$!
+	set -e
+	( for i in 4 8 12 16 20; do sleep 4; xcrun simctl io "$udid" screenshot "$outdir/simulator-screenshot-$i.png" 2>/dev/null || true; done ) &
+	local shotpid=$!
+	local found=""
+	for i in $(seq 1 40); do
+		if [ -n "$container" ] && [ -f "$container/Documents/$resfile" ]; then found=1; break; fi
+		kill -0 $launchpid 2>/dev/null || break
+		sleep 2
+	done
+	[ -n "$found" ] && sleep 2
+	wait $shotpid 2>/dev/null || true
+	ls -t "$outdir"/simulator-screenshot-*.png 2>/dev/null | head -1 | xargs -I{} cp {} "$outdir/simulator-screenshot.png" 2>/dev/null || true
+	ls -lh "$outdir/simulator-screenshot.png" 2>/dev/null || echo "WARNING: no screenshot"
+	xcrun simctl terminate "$udid" "$bid" 2>/dev/null || true
+	kill $launchpid 2>/dev/null || true
 	if [ -n "$container" ] && [ -f "$container/Documents/$resfile" ]; then
 		cp "$container/Documents/$resfile" "$outdir/"
 		echo "--- $resfile:"; cat "$outdir/$resfile"
 	else
-		echo "WARNING: result file $resfile not found in app sandbox"
+		echo "ERROR: result file $resfile not found in app sandbox — the app did not complete its run" >&2
 		find "$container" -type f 2>/dev/null | head -20 || true
+		echo "--- app-console.log:"; cat "$outdir/app-console.log" || true
+		return 1
 	fi
-	xcrun simctl terminate "$udid" "$bid" 2>/dev/null || true
 }
