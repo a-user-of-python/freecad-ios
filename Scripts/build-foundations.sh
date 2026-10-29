@@ -42,13 +42,9 @@ rm -rf "$PREFIX"; mkdir -p "$PREFIX"
 NCPU="$(sysctl -n hw.ncpu)"
 TOOLCHAIN="$QT_IOS/lib/cmake/Qt6/qt.toolchain.cmake"
 
-# Modern CMake (4.x, homebrew) fatals in Platform/iOS-Initialize.cmake
-# ("iphoneos is not an iOS SDK") when CMAKE_OSX_SYSROOT is left as the
-# SDK *name* the Qt toolchain defaults to; pass the resolved SDK path.
-IOS_SDK_PATH="$(xcrun --sdk iphoneos --show-sdk-path)"
-echo "== iPhoneOS SDK: $IOS_SDK_PATH"
-test -d "$IOS_SDK_PATH"
-
+# CMAKE_OSX_SYSROOT is the resolved SDK path from qt-install.inc.sh
+# (modern CMake 4.x fatals when it is left as the "iphoneos" name,
+# and xcrun cannot be trusted on every runner — see the include).
 COMMON=(
 	-DCMAKE_TOOLCHAIN_FILE="$TOOLCHAIN"
 	-DQT_HOST_PATH="$QT_DESKTOP"

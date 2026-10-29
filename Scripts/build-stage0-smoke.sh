@@ -23,11 +23,9 @@ mkdir -p "$WORK" "$DIST"
 echo "== Qt host-path machinery (from the installed kits):"
 grep -n "QT_HOST_PATH" "$QT_IOS/lib/cmake/Qt6/qt.toolchain.cmake" | head -20 || true
 
-# Modern CMake (4.x) fatals ("iphoneos is not an iOS SDK") when
-# CMAKE_OSX_SYSROOT is left as the SDK name; pass the resolved path.
-IOS_SDK_PATH="$(xcrun --sdk iphoneos --show-sdk-path)"
-echo "== iPhoneOS SDK: $IOS_SDK_PATH"
-test -d "$IOS_SDK_PATH"
+# CMAKE_OSX_SYSROOT: resolved SDK path from qt-install.inc.sh
+# (CMake 4.x fatals on the "iphoneos" name; xcrun is unreliable on
+# some runners — see the include for the discovery logic).
 
 # Try the flag variants in order, FEBio-style: the first that
 # configures wins and is used for the build.
