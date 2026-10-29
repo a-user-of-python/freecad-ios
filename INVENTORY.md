@@ -18,6 +18,22 @@ and the patch series.
 | S7 | FreeCAD itself: configure (Qt experiment first) → build | **BLOCKED by the hard gate: S3 + S4 verdicts first** |
 | S8 | Bundle + unsigned IPA | not started |
 
+## Resolved research discrepancies
+
+- **Fem VTK gating (synthesis appendix 1) — RESOLVED 2026-10-29 from
+  the pinned source:** front 04 was right. `Mod/Fem/App/CMakeLists.txt`
+  links `${VTK_LIBRARIES}` unconditionally (line 232; FemGui the same;
+  include dirs unconditional at line 228). Only FemPost/FemVTK
+  *sources* are gated by `BUILD_FEM_VTK`, and there is no OFF path:
+  `SetupSalomeSMESH.cmake` runs `find_package(VTK REQUIRED)` whenever
+  SMESH is on and sets `BUILD_FEM_VTK ON`. Consequence: the M4
+  VTK-off shape requires an iOS-guarded patch (or the S6 subset
+  arriving earlier). S6's "first hour" task is therefore already done.
+- **Boost version:** synthesis said 1.90; live pinning says 1.88.
+  PIN.md pins 1.88 (the feedstock-proven pairing).
+- **Eigen version:** open (3.4 staged vs pinning's 5.0.1 ABI line) —
+  settled at the S7 configure; see PIN.md.
+
 ## Patch series
 
 None yet. Every future patch: numbered (`NNNN-short-name.patch`),
