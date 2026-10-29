@@ -273,6 +273,15 @@ configure_app() {
 		echo "init source present: $_c"
 		grep -rn "objects-Release" "$QT_IOS/lib/cmake/Qt6Widgets/"*.cmake 2>/dev/null | head -5 || true
 		grep -rln "_init" "$QT_IOS/lib/cmake/" 2>/dev/null | head -5 || true
+		echo "== slice platforms (fix-11 probe): platform 2=iOS device, 7=iOS simulator"
+		for _a in "$_f" \
+			"$QT_IOS/plugins/platforms/objects-Release/QIOSIntegrationPlugin_init/QIOSIntegrationPlugin_init.cpp.o" \
+			"$QT_IOS/lib/QtWidgets.framework/QtWidgets" \
+			"$QT_IOS/lib/QtCore.framework/QtCore" \
+			"$QT_IOS/plugins/platforms/libqios.a"; do
+			echo "-- $_a"
+			lipo -detailed_info "$_a" 2>/dev/null | grep -E "architecture|platform|sdk" | head -12 || file "$_a"
+		done
 	fi
 	rm -rf "$bld"
 	cmake -S "$src" -B "$bld" -G Ninja \
