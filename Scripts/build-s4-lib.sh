@@ -123,6 +123,7 @@ build_gl4es() {
 		-DCMAKE_TOOLCHAIN_FILE="$S4_SRC/ios-cmake/ios.toolchain.cmake" \
 		-DPLATFORM="$plat" -DDEPLOYMENT_TARGET=17.0 \
 		-DNOX11=ON -DNOEGL=ON -DSTATICLIB=ON -DDEFAULT_ES=2 \
+		-DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
 		-DCMAKE_BUILD_TYPE=Release
 	cmake --build "$S4_WORK/gl4es-$arch" --target GL
 	local lib
