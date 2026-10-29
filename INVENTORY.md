@@ -60,6 +60,42 @@ Full audit: goal workspace `hidden_files/research/ci-readiness.md`.
   cold. Deps ccache recommended for foundations + OCCT when their
   scripts next change (spine/OCCT owners).
 
+## Qt gate (synthesis §1.3) — Phase-1 verdict: GATE-PASS (2026-10-29)
+
+Full record: goal workspace `hidden_files/research/qt-gate-probe.md`.
+Run `40971926782` (job success; evidence artifact `qt-gate-evidence`):
+a battery replicating SetupQt.cmake's exact Qt6+GUI REQUIRED component
+list **configured, compiled, and LINKED** against the Qt 6.9.3 iOS kit
+(arm64, deployment 17.0), exercising the snapshot's newest-branch APIs
+(`QImage::flip/flipped` at the three `< 6.9.0` fallback sites,
+`QPagedPaintDevice::PdfVersion_X4`, `QCheckBox::checkStateChanged`,
+QOpenGLWidget, QUiLoader, QSvg, QPrinter, QtConcurrent…). Host scan
+agrees: `QT_VERSION_CHECK` minors present are 0–9 only; references to
+Qt ≥ 6.10: **zero**. **Zero [QT-API] failures in six probe runs** — Qt
+6.9.3 stands as the primary kit; no §1.3 fallback is needed. Phase 2
+(full configure depth) runs when OCCT + ICU artifacts exist.
+
+Two findings ride into Stage 7's configure, recorded here so they
+can't be lost:
+- **ICU is a hard dependency with no shortcut.** FreeCAD's top-level
+  `CMakeLists.txt:98` requires ICU (uc/i18n); FindICU in cross mode
+  cannot be satisfied by the SDK's `libicucore` (seven seeding layouts
+  proven insufficient by the probe). A real iOS ICU build joins the
+  foundations line (in progress). This settles synthesis appendix
+  item 4: the Xerces built-in-transcoder route does NOT cover
+  FreeCADBase's own ICU requirement.
+- **rcc compression flags:** the official Qt 6.9.3 host `rcc` has no
+  compiled-in zstd and rejects FreeCAD's default `--compress 19`
+  under zlib. Stage 7 configures with
+  `FREECAD_RCC_COMPRESSION_ALGO=zlib` +
+  `FREECAD_RCC_COMPRESSION_LEVEL=9`. [CONFIG], not a Qt gap.
+- **Maximize-space landmine:** the deps workflows' sibling-Xcode
+  deletion destroyed the iPhoneOS SDK mid-flight on some runners
+  (killed probe run 40957050742 and OCCT run 40929074102 — the "sick
+  runner" explanation was incomplete). Deletion loops removed from
+  deps-foundations/data/python/vtk (coordinator) and deps-occt
+  (owner-directed); SDK discovery belongs to the build scripts.
+
 ## Patch series
 
 None yet. Every future patch: numbered (`NNNN-short-name.patch`),
