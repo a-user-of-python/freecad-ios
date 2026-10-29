@@ -1,0 +1,3219 @@
+diff --git a/salomesmesh/occt8-compat/Bnd/Bnd_B2d.hxx b/salomesmesh/occt8-compat/Bnd/Bnd_B2d.hxx
+new file mode 100644
+index 0000000..94e5f33
+--- /dev/null
++++ b/salomesmesh/occt8-compat/Bnd/Bnd_B2d.hxx
+@@ -0,0 +1,149 @@
++// Created on: 1991-01-08
++// Created by: Didier Piffault
++// Copyright (c) 1991-1999 Matra Datavision
++// Copyright (c) 1999-2014 OPEN CASCADE SAS
++//
++// This file is part of Open CASCADE Technology software library.
++//
++// This library is free software; you can redistribute it and/or modify it under
++// the terms of the GNU Lesser General Public License version 2.1 as published
++// by the Free Software Foundation, with special exception defined in the file
++// OCCT_LGPL_EXCEPTION.txt. Consult the file LICENSE_LGPL_21.txt included in OCCT
++// distribution for complete text of the license and disclaimer of any warranty.
++//
++// Alternatively, this file may be used under the terms of Open CASCADE
++// commercial license or contractual agreement.
++
++#ifndef _Bnd_B2d_HeaderFile
++#define _Bnd_B2d_HeaderFile
++
++#include <Standard.hxx>
++#include <Standard_DefineAlloc.hxx>
++#include <Standard_Handle.hxx>
++
++#include <Standard_Real.hxx>
++#include <Standard_Boolean.hxx>
++#include <gp_XY.hxx>
++class gp_XY;
++class gp_Pnt2d;
++class gp_Trsf2d;
++class gp_Ax2d;
++
++class Bnd_B2d
++{
++public:
++  DEFINE_STANDARD_ALLOC
++
++  //! Empty constructor.
++  Bnd_B2d();
++
++  //! Constructor.
++  Bnd_B2d(const gp_XY& theCenter, const gp_XY& theHSize);
++
++  //! Returns True if the box is void (non-initialized).
++  Standard_Boolean IsVoid() const;
++
++  //! Reset the box data.
++  void Clear();
++
++  //! Update the box by a point.
++  Standard_EXPORT void Add(const gp_XY& thePnt);
++
++  //! Update the box by a point.
++  void Add(const gp_Pnt2d& thePnt);
++
++  //! Update the box by another box.
++  void Add(const Bnd_B2d& theBox);
++
++  //! Query a box corner: (Center - HSize). You must make sure that
++  //! the box is NOT VOID (see IsVoid()), otherwise the method returns
++  //! irrelevant result.
++  gp_XY CornerMin() const;
++
++  //! Query a box corner: (Center + HSize). You must make sure that
++  //! the box is NOT VOID (see IsVoid()), otherwise the method returns
++  //! irrelevant result.
++  gp_XY CornerMax() const;
++
++  //! Query the square diagonal. If the box is VOID (see method IsVoid())
++  //! then a very big real value is returned.
++  Standard_Real SquareExtent() const;
++
++  //! Extend the Box by the absolute value of theDiff.
++  void Enlarge(const Standard_Real theDiff);
++
++  //! Limit the Box by the internals of theOtherBox.
++  //! Returns True if the limitation takes place, otherwise False
++  //! indicating that the boxes do not intersect.
++  Standard_EXPORT Standard_Boolean Limit(const Bnd_B2d& theOtherBox);
++
++  //! Transform the bounding box with the given transformation.
++  //! The resulting box will be larger if theTrsf contains rotation.
++  Standard_NODISCARD Standard_EXPORT Bnd_B2d Transformed(const gp_Trsf2d& theTrsf) const;
++
++  //! Check the given point for the inclusion in the Box.
++  //! Returns True if the point is outside.
++  Standard_Boolean IsOut(const gp_XY& thePnt) const;
++
++  //! Check a circle for the intersection with the current box.
++  //! Returns True if there is no intersection between boxes.
++  Standard_EXPORT Standard_Boolean
++    IsOut(const gp_XY&           theCenter,
++          const Standard_Real    theRadius,
++          const Standard_Boolean isCircleHollow = Standard_False) const;
++
++  //! Check the given box for the intersection with the current box.
++  //! Returns True if there is no intersection between boxes.
++  Standard_Boolean IsOut(const Bnd_B2d& theOtherBox) const;
++
++  //! Check the given box oriented by the given transformation
++  //! for the intersection with the current box.
++  //! Returns True if there is no intersection between boxes.
++  Standard_EXPORT Standard_Boolean IsOut(const Bnd_B2d&   theOtherBox,
++                                         const gp_Trsf2d& theTrsf) const;
++
++  //! Check the given Line for the intersection with the current box.
++  //! Returns True if there is no intersection.
++  Standard_EXPORT Standard_Boolean IsOut(const gp_Ax2d& theLine) const;
++
++  //! Check the Segment defined by the couple of input points
++  //! for the intersection with the current box.
++  //! Returns True if there is no intersection.
++  Standard_EXPORT Standard_Boolean IsOut(const gp_XY& theP0, const gp_XY& theP1) const;
++
++  //! Check that the box 'this' is inside the given box 'theBox'. Returns
++  //! True if 'this' box is fully inside 'theBox'.
++  Standard_Boolean IsIn(const Bnd_B2d& theBox) const;
++
++  //! Check that the box 'this' is inside the given box 'theBox'
++  //! transformed by 'theTrsf'. Returns True if 'this' box is fully
++  //! inside the transformed 'theBox'.
++  Standard_EXPORT Standard_Boolean IsIn(const Bnd_B2d& theBox, const gp_Trsf2d& theTrsf) const;
++
++  //! Set the Center coordinates
++  void SetCenter(const gp_XY& theCenter);
++
++  //! Set the HSize (half-diagonal) coordinates.
++  //! All components of theHSize must be non-negative.
++  void SetHSize(const gp_XY& theHSize);
++
++protected:
++  Standard_Real myCenter[2];
++  Standard_Real myHSize[2];
++
++private:
++};
++
++#define RealType Standard_Real
++#define RealType_hxx <Standard_Real.hxx>
++#define Bnd_B2x Bnd_B2d
++#define Bnd_B2x_hxx <Bnd_B2d.hxx>
++
++#include <Bnd_B2x.lxx>
++
++#undef RealType
++#undef RealType_hxx
++#undef Bnd_B2x
++#undef Bnd_B2x_hxx
++
++#endif // _Bnd_B2d_HeaderFile
+diff --git a/salomesmesh/occt8-compat/Bnd/Bnd_B2x.gxx b/salomesmesh/occt8-compat/Bnd/Bnd_B2x.gxx
+new file mode 100644
+index 0000000..45a2fcd
+--- /dev/null
++++ b/salomesmesh/occt8-compat/Bnd/Bnd_B2x.gxx
+@@ -0,0 +1,350 @@
++// Created on: 2005-09-08
++// Created by: Alexander GRIGORIEV
++// Copyright (c) 2005-2014 OPEN CASCADE SAS
++//
++// This file is part of Open CASCADE Technology software library.
++//
++// This library is free software; you can redistribute it and/or modify it under
++// the terms of the GNU Lesser General Public License version 2.1 as published
++// by the Free Software Foundation, with special exception defined in the file
++// OCCT_LGPL_EXCEPTION.txt. Consult the file LICENSE_LGPL_21.txt included in OCCT
++// distribution for complete text of the license and disclaimer of any warranty.
++//
++// Alternatively, this file may be used under the terms of Open CASCADE
++// commercial license or contractual agreement.
++
++inline Standard_Boolean _compareDist  (const RealType aHSize[2],
++                                       const RealType aDist[2])
++{
++  return (Abs(aDist[0]) > aHSize[0] || Abs(aDist[1]) > aHSize[1]);
++}
++
++inline Standard_Boolean _compareDistD (const gp_XY& aHSize, const gp_XY& aDist)
++{
++  return (Abs(aDist.X()) > aHSize.X() || Abs(aDist.Y()) > aHSize.Y());
++}
++
++//=======================================================================
++//function : Add
++//purpose  : Update the box by a point
++//=======================================================================
++
++void Bnd_B2x::Add (const gp_XY& thePnt) {
++  if (IsVoid()) {
++    myCenter[0] = RealType(thePnt.X());
++    myCenter[1] = RealType(thePnt.Y());
++    myHSize [0] = 0.;
++    myHSize [1] = 0.;
++  } else {
++    const RealType aDiff[2] = {
++      RealType(thePnt.X()) - myCenter[0],
++      RealType(thePnt.Y()) - myCenter[1]
++    };
++    if (aDiff[0] > myHSize[0]) {
++      const RealType aShift = (aDiff[0] - myHSize[0]) / 2;
++      myCenter[0] += aShift;
++      myHSize [0] += aShift;
++    } else if (aDiff[0] < -myHSize[0]) {
++      const RealType aShift = (aDiff[0] + myHSize[0]) / 2;
++      myCenter[0] += aShift;
++      myHSize [0] -= aShift;
++    }
++    if (aDiff[1] > myHSize[1]) {
++      const RealType aShift = (aDiff[1] - myHSize[1]) / 2;
++      myCenter[1] += aShift;
++      myHSize [1] += aShift;
++    } else if (aDiff[1] < -myHSize[1]) {
++      const RealType aShift = (aDiff[1] + myHSize[1]) / 2;
++      myCenter[1] += aShift;
++      myHSize [1] -= aShift;
++    }
++  }
++}
++
++//=======================================================================
++//function : Limit
++//purpose  : limit the current box with the internals of theBox
++//=======================================================================
++
++Standard_Boolean Bnd_B2x::Limit (const Bnd_B2x& theBox)
++{
++  Standard_Boolean aResult (Standard_False);
++  const RealType diffC[2] = {
++    theBox.myCenter[0] - myCenter[0],
++    theBox.myCenter[1] - myCenter[1]
++  };
++  const RealType sumH[2] = {
++    theBox.myHSize[0] + myHSize[0],
++    theBox.myHSize[1] + myHSize[1]
++  };
++  // check the condition IsOut
++  if (_compareDist (sumH, diffC) == Standard_False) {
++    const RealType diffH[2] = {
++      theBox.myHSize[0] - myHSize[0],
++      theBox.myHSize[1] - myHSize[1]
++    };
++    if (diffC[0] - diffH[0] > 0.) {
++      const RealType aShift = (diffC[0] - diffH[0]) / 2; // positive
++      myCenter[0] += aShift;
++      myHSize [0] -= aShift;
++    } else if (diffC[0] + diffH[0] < 0.) {
++      const RealType aShift = (diffC[0] + diffH[0]) / 2; // negative
++      myCenter[0] += aShift;
++      myHSize [0] += aShift;
++    }
++    if (diffC[1] - diffH[1] > 0.) {
++      const RealType aShift = (diffC[1] - diffH[1]) / 2; // positive
++      myCenter[1] += aShift;
++      myHSize [1] -= aShift;
++    } else if (diffC[1] + diffH[1] < 0.) {
++      const RealType aShift = (diffC[1] + diffH[1]) / 2; // negative
++      myCenter[1] += aShift;
++      myHSize [1] += aShift;
++    }
++    aResult = Standard_True;
++  }
++  return aResult;
++}
++
++//=======================================================================
++//function : Transformed
++//purpose  : 
++//=======================================================================
++
++Bnd_B2x Bnd_B2x::Transformed (const gp_Trsf2d& theTrsf) const
++{
++  Bnd_B2x aResult;
++  const gp_TrsfForm aForm = theTrsf.Form();
++  const Standard_Real aScale = theTrsf.ScaleFactor();
++  const Standard_Real aScaleAbs = Abs(aScale);
++  if (aForm == gp_Identity)
++    aResult = * this;
++  else if (aForm== gp_Translation || aForm== gp_PntMirror || aForm== gp_Scale)
++  {
++    aResult.myCenter[0] =
++      (RealType)(myCenter[0] * aScale + theTrsf.TranslationPart().X());
++    aResult.myCenter[1] =
++      (RealType)(myCenter[1] * aScale + theTrsf.TranslationPart().Y());
++    aResult.myHSize[0] = (RealType)(myHSize[0] * aScaleAbs);
++    aResult.myHSize[1] = (RealType)(myHSize[1] * aScaleAbs);
++  } else {
++    gp_XY aCenter ((Standard_Real)myCenter[0],
++                   (Standard_Real)myCenter[1]);
++    theTrsf.Transforms (aCenter);
++    aResult.myCenter[0] = (RealType)aCenter.X();
++    aResult.myCenter[1] = (RealType)aCenter.Y();
++
++    const Standard_Real * aMat = &theTrsf.HVectorialPart().Value(1,1);
++    aResult.myHSize[0] = (RealType)(aScaleAbs * (Abs(aMat[0]) * myHSize[0]+
++                                                 Abs(aMat[1]) * myHSize[1]));
++    aResult.myHSize[1] = (RealType)(aScaleAbs * (Abs(aMat[2]) * myHSize[0]+
++                                                 Abs(aMat[3]) * myHSize[1]));
++  }
++  return aResult;
++}
++
++//=======================================================================
++//function : IsOut
++//purpose  : Intersection Box - Circle
++//=======================================================================
++
++Standard_Boolean Bnd_B2x::IsOut (const gp_XY&           theCenter,
++                                 const Standard_Real    theRadius,
++                                 const Standard_Boolean isCircleHollow) const
++{
++  Standard_Boolean aResult (Standard_True);
++  if (isCircleHollow == Standard_False) {
++    // vector from the center of the circle to the nearest box face
++    const Standard_Real aDist[2] = {
++      Abs(theCenter.X()-Standard_Real(myCenter[0])) - Standard_Real(myHSize[0]),
++      Abs(theCenter.Y()-Standard_Real(myCenter[1])) - Standard_Real(myHSize[1])
++    };
++    Standard_Real aD (0.);
++    if (aDist[0] > 0.)
++      aD  = aDist[0]*aDist[0];
++    if (aDist[1] > 0.)
++      aD += aDist[1]*aDist[1];
++    aResult = (aD > theRadius*theRadius);
++  } else {
++    const Standard_Real aDistC[2] = {
++      Abs(theCenter.X()-Standard_Real(myCenter[0])),
++      Abs(theCenter.Y()-Standard_Real(myCenter[1]))
++    };
++    // vector from the center of the circle to the nearest box face
++    Standard_Real aDist[2] = {
++      aDistC[0] - Standard_Real(myHSize[0]),
++      aDistC[1] - Standard_Real(myHSize[1])
++    };
++    Standard_Real aD (0.);
++    if (aDist[0] > 0.)
++      aD  = aDist[0]*aDist[0];
++    if (aDist[1] > 0.)
++      aD += aDist[1]*aDist[1];
++    if (aD < theRadius*theRadius) {
++      // the box intersects the solid circle; check if it is completely
++      // inside the circle (in such case return isOut==True)
++      aDist[0] = aDistC[0] + Standard_Real(myHSize[0]);
++      aDist[1] = aDistC[1] + Standard_Real(myHSize[1]);
++      if (aDist[0]*aDist[0]+aDist[1]*aDist[1] > theRadius*theRadius)
++        aResult = Standard_False;
++    }
++  }
++  return aResult;
++}
++
++//=======================================================================
++//function : IsOut
++//purpose  : Intersection Box - transformed Box
++//=======================================================================
++
++Standard_Boolean Bnd_B2x::IsOut (const Bnd_B2x&   theBox,
++                                 const gp_Trsf2d& theTrsf) const
++{
++  Standard_Boolean aResult (Standard_False);
++  const gp_TrsfForm aForm = theTrsf.Form();
++  const Standard_Real aScale = theTrsf.ScaleFactor();
++  const Standard_Real aScaleAbs = Abs(aScale);
++  if (aForm == gp_Translation || aForm == gp_Identity ||
++      aForm == gp_PntMirror   || aForm == gp_Scale)
++  {
++    aResult =
++      (Abs (RealType(theBox.myCenter[0]*aScale + theTrsf.TranslationPart().X())
++            - myCenter[0])
++         > RealType (theBox.myHSize[0]*aScaleAbs) + myHSize[0] ||
++       Abs (RealType(theBox.myCenter[1]*aScale + theTrsf.TranslationPart().Y())
++            - myCenter[1])
++         > RealType (theBox.myHSize[1]*aScaleAbs) + myHSize[1]);
++
++  }
++  else {
++    // theBox is transformed and we check the resulting (enlarged) box against
++    // 'this' box.
++    const Standard_Real * aMat = &theTrsf.HVectorialPart().Value(1,1);
++
++    gp_XY aCenter ((Standard_Real)theBox.myCenter[0],
++                   (Standard_Real)theBox.myCenter[1]);
++    theTrsf.Transforms (aCenter);
++    const Standard_Real aDist[2] = {
++      aCenter.X() - (Standard_Real)myCenter[0],
++      aCenter.Y() - (Standard_Real)myCenter[1]
++    };
++    const Standard_Real aMatAbs[4] = {
++      Abs(aMat[0]), Abs(aMat[1]), Abs(aMat[2]), Abs(aMat[3])
++    };
++    if (Abs(aDist[0]) > (aScaleAbs * (aMatAbs[0]*theBox.myHSize[0]+
++                                      aMatAbs[1]*theBox.myHSize[1]) +
++                         (Standard_Real)myHSize[0])    ||
++        Abs(aDist[1]) > (aScaleAbs * (aMatAbs[2]*theBox.myHSize[0]+
++                                      aMatAbs[3]*theBox.myHSize[1]) +
++                         (Standard_Real)myHSize[1]))
++      aResult = Standard_True;
++
++    else {
++    // theBox is rotated, scaled and translated. We apply the reverse
++    // translation and scaling then check against the rotated box 'this'
++      if ((Abs(aMat[0]*aDist[0]+aMat[2]*aDist[1])
++           > theBox.myHSize[0]*aScaleAbs + (aMatAbs[0]*myHSize[0] +
++                                            aMatAbs[2]*myHSize[1])) ||
++          (Abs(aMat[1]*aDist[0]+aMat[3]*aDist[1])
++           > theBox.myHSize[1]*aScaleAbs + (aMatAbs[1]*myHSize[0] +
++                                            aMatAbs[3]*myHSize[1])))
++        aResult = Standard_True;
++    }
++  }
++  return aResult;
++}
++
++//=======================================================================
++//function : IsOut
++//purpose  : Intersection Box - Line
++//=======================================================================
++
++Standard_Boolean Bnd_B2x::IsOut (const gp_Ax2d& theLine) const
++{
++  if (IsVoid())
++    return Standard_True;
++  // Intersect the line containing the segment.
++  const Standard_Real aProd[3] = {
++    theLine.Direction().XY() ^ (gp_XY (myCenter[0] - theLine.Location().X(),
++                                       myCenter[1] - theLine.Location().Y())),
++    theLine.Direction().X() * Standard_Real(myHSize[1]),
++    theLine.Direction().Y() * Standard_Real(myHSize[0])
++  };
++  return (Abs(aProd[0]) > (Abs(aProd[1]) + Abs(aProd[2])));
++}
++
++//=======================================================================
++//function : IsOut
++//purpose  : Intersection Box - Segment
++//=======================================================================
++
++Standard_Boolean Bnd_B2x::IsOut (const gp_XY& theP0, const gp_XY& theP1) const
++{
++  Standard_Boolean aResult (Standard_True);
++  if (IsVoid() == Standard_False)
++  {
++    // Intersect the line containing the segment.
++    const gp_XY aSegDelta (theP1 - theP0);
++    const Standard_Real aProd[3] = {
++      aSegDelta ^ (gp_XY (myCenter[0], myCenter[1]) - theP0),
++      aSegDelta.X() * Standard_Real(myHSize[1]),
++      aSegDelta.Y() * Standard_Real(myHSize[0])
++    };
++    if (Abs(aProd[0]) < (Abs(aProd[1]) + Abs(aProd[2])))
++    {
++      // Intersection with line detected; check the segment as bounding box
++      const gp_XY aHSeg    (0.5 * aSegDelta.X(), 0.5 * aSegDelta.Y());
++      const gp_XY aHSegAbs (Abs(aHSeg.X()), Abs(aHSeg.Y()));
++      aResult = _compareDistD (gp_XY((Standard_Real)myHSize[0],
++                                     (Standard_Real)myHSize[1]) + aHSegAbs,
++                               theP0 + aHSeg-gp_XY((Standard_Real)myCenter[0],
++                                                   (Standard_Real)myCenter[1]));
++    }
++  }
++  return aResult;
++}
++
++//=======================================================================
++//function : IsIn
++//purpose  : Test the complete inclusion of this box in transformed theOtherBox
++//=======================================================================
++
++Standard_Boolean Bnd_B2x::IsIn (const Bnd_B2x&   theBox,
++                                const gp_Trsf2d& theTrsf) const
++{
++  Standard_Boolean aResult (Standard_False);
++  const gp_TrsfForm aForm = theTrsf.Form();
++  const Standard_Real aScale = theTrsf.ScaleFactor();
++  const Standard_Real aScaleAbs = Abs(aScale);
++  if (aForm == gp_Translation || aForm == gp_Identity ||
++      aForm == gp_PntMirror   || aForm == gp_Scale)
++  {
++    aResult =
++      (Abs (RealType(theBox.myCenter[0]*aScale + theTrsf.TranslationPart().X())
++            - myCenter[0])
++         < RealType (theBox.myHSize[0]*aScaleAbs) - myHSize[0] &&
++       Abs (RealType(theBox.myCenter[1]*aScale + theTrsf.TranslationPart().Y())
++            - myCenter[1])
++         < RealType (theBox.myHSize[1]*aScaleAbs) - myHSize[1]);
++
++  } else {
++    // theBox is rotated, scaled and translated. We apply the reverse
++    // translation and scaling then check against the rotated box 'this'
++    const Standard_Real * aMat = &theTrsf.HVectorialPart().Value(1,1);
++    gp_XY aCenter ((Standard_Real)theBox.myCenter[0],
++                   (Standard_Real)theBox.myCenter[1]);
++    theTrsf.Transforms (aCenter);
++    const Standard_Real aDist[2] = {
++      aCenter.X() - (Standard_Real)myCenter[0],
++      aCenter.Y() - (Standard_Real)myCenter[1]
++    };
++    if ((Abs(aMat[0]*aDist[0]+aMat[2]*aDist[1])
++         < theBox.myHSize[0]*aScaleAbs - (Abs(aMat[0])*myHSize[0] +
++                                          Abs(aMat[2])*myHSize[1])) &&
++        (Abs(aMat[1]*aDist[0]+aMat[3]*aDist[1])
++         < theBox.myHSize[1]*aScaleAbs - (Abs(aMat[1])*myHSize[0] +
++                                          Abs(aMat[3])*myHSize[1])))
++      aResult = Standard_True;
++  }
++  return aResult;
++}
+diff --git a/salomesmesh/occt8-compat/Bnd/Bnd_B2x.lxx b/salomesmesh/occt8-compat/Bnd/Bnd_B2x.lxx
+new file mode 100644
+index 0000000..629ab6a
+--- /dev/null
++++ b/salomesmesh/occt8-compat/Bnd/Bnd_B2x.lxx
+@@ -0,0 +1,163 @@
++// Created on: 2005-09-08
++// Created by: Alexander GRIGORIEV
++// Copyright (c) 2005-2014 OPEN CASCADE SAS
++//
++// This file is part of Open CASCADE Technology software library.
++//
++// This library is free software; you can redistribute it and/or modify it under
++// the terms of the GNU Lesser General Public License version 2.1 as published
++// by the Free Software Foundation, with special exception defined in the file
++// OCCT_LGPL_EXCEPTION.txt. Consult the file LICENSE_LGPL_21.txt included in OCCT
++// distribution for complete text of the license and disclaimer of any warranty.
++//
++// Alternatively, this file may be used under the terms of Open CASCADE
++// commercial license or contractual agreement.
++
++#include <gp_Pnt2d.hxx>
++
++#ifndef Bnd_B2x_RealLast
++  #define Bnd_B2x_RealLast RealType(1e30);
++#endif
++
++/**
++ * Empty constructor
++ */
++inline Bnd_B2x::Bnd_B2x()
++{
++  Clear();
++}
++
++/**
++ * Constructor.
++ * @param theCenter
++ *   Center of the created box
++ * @param theHSize
++ *   Half-diagonal of the box, both X and Y should be non-negative
++ */
++inline Bnd_B2x::Bnd_B2x(const gp_XY& theCenter, const gp_XY& theHSize)
++{
++  myCenter[0] = RealType(theCenter.X());
++  myCenter[1] = RealType(theCenter.Y());
++  myHSize[0]  = RealType(theHSize.X());
++  myHSize[1]  = RealType(theHSize.Y());
++}
++
++/**
++ * Reset the box data.
++ */
++inline void Bnd_B2x::Clear()
++{
++  myCenter[0] = Bnd_B2x_RealLast;
++  myCenter[1] = Bnd_B2x_RealLast;
++  myHSize[0]  = -Bnd_B2x_RealLast;
++  myHSize[1]  = -Bnd_B2x_RealLast;
++}
++
++/**
++ * Check if the box is empty.
++ */
++inline Standard_Boolean Bnd_B2x::IsVoid() const
++{
++  return (myHSize[0] < -1e-5);
++}
++
++/**
++ * Update the box by point.
++ */
++inline void Bnd_B2x::Add(const gp_Pnt2d& thePnt)
++{
++  Add(thePnt.XY());
++}
++
++/**
++ * Update the box by another box.
++ */
++inline void Bnd_B2x::Add(const Bnd_B2x& theBox)
++{
++  if (theBox.IsVoid() == Standard_False)
++  {
++    Add(theBox.CornerMin());
++    Add(theBox.CornerMax());
++  }
++}
++
++/**
++ * Query a box corner.
++ */
++inline gp_XY Bnd_B2x::CornerMin() const
++{
++  return gp_XY(myCenter[0] - myHSize[0], myCenter[1] - myHSize[1]);
++}
++
++/**
++ * Query a box corner.
++ */
++inline gp_XY Bnd_B2x::CornerMax() const
++{
++  return gp_XY(myCenter[0] + myHSize[0], myCenter[1] + myHSize[1]);
++}
++
++/**
++ * Query the square diagonal.
++ */
++inline Standard_Real Bnd_B2x::SquareExtent() const
++{
++  return 4 * (myHSize[0] * myHSize[0] + myHSize[1] * myHSize[1]);
++}
++
++/**
++ * Set the Center coordinates.
++ */
++inline void Bnd_B2x::SetCenter(const gp_XY& theCenter)
++{
++  myCenter[0] = RealType(theCenter.X());
++  myCenter[1] = RealType(theCenter.Y());
++}
++
++/**
++ * Set the HSize coordinates.
++ */
++inline void Bnd_B2x::SetHSize(const gp_XY& theHSize)
++{
++  myHSize[0] = RealType(theHSize.X());
++  myHSize[1] = RealType(theHSize.Y());
++}
++
++/**
++ * Increase the box.
++ * @param aDiff
++ *   absolute value of this parameter is added to the box size in all dimensions.
++ */
++inline void Bnd_B2x::Enlarge(const Standard_Real aDiff)
++{
++  const RealType aD = RealType(Abs(aDiff));
++  myHSize[0] += aD;
++  myHSize[1] += aD;
++}
++
++/**
++ * Intersection Box - Point
++ */
++inline Standard_Boolean Bnd_B2x::IsOut(const gp_XY& thePnt) const
++{
++  return (Abs(RealType(thePnt.X()) - myCenter[0]) > myHSize[0]
++          || Abs(RealType(thePnt.Y()) - myCenter[1]) > myHSize[1]);
++}
++
++/**
++ * Intersection Box-Box.
++ */
++inline Standard_Boolean Bnd_B2x::IsOut(const Bnd_B2x& theBox) const
++{
++  return (Abs(theBox.myCenter[0] - myCenter[0]) > theBox.myHSize[0] + myHSize[0]
++          || Abs(theBox.myCenter[1] - myCenter[1]) > theBox.myHSize[1] + myHSize[1]);
++}
++
++/**
++ * Test the complete inclusion of this box in theBox.
++ */
++inline Standard_Boolean Bnd_B2x::IsIn(const Bnd_B2x& theBox) const
++{
++  return (Abs(theBox.myCenter[0] - myCenter[0]) < theBox.myHSize[0] - myHSize[0]
++          && Abs(theBox.myCenter[1] - myCenter[1]) < theBox.myHSize[1] - myHSize[1]);
++}
+diff --git a/salomesmesh/occt8-compat/Bnd/Bnd_B3d.hxx b/salomesmesh/occt8-compat/Bnd/Bnd_B3d.hxx
+new file mode 100644
+index 0000000..648d036
+--- /dev/null
++++ b/salomesmesh/occt8-compat/Bnd/Bnd_B3d.hxx
+@@ -0,0 +1,157 @@
++// Created on: 1991-01-08
++// Created by: Didier Piffault
++// Copyright (c) 1991-1999 Matra Datavision
++// Copyright (c) 1999-2014 OPEN CASCADE SAS
++//
++// This file is part of Open CASCADE Technology software library.
++//
++// This library is free software; you can redistribute it and/or modify it under
++// the terms of the GNU Lesser General Public License version 2.1 as published
++// by the Free Software Foundation, with special exception defined in the file
++// OCCT_LGPL_EXCEPTION.txt. Consult the file LICENSE_LGPL_21.txt included in OCCT
++// distribution for complete text of the license and disclaimer of any warranty.
++//
++// Alternatively, this file may be used under the terms of Open CASCADE
++// commercial license or contractual agreement.
++
++#ifndef _Bnd_B3d_HeaderFile
++#define _Bnd_B3d_HeaderFile
++
++#include <Standard.hxx>
++#include <Standard_DefineAlloc.hxx>
++#include <Standard_Handle.hxx>
++
++#include <Standard_Real.hxx>
++#include <Standard_Boolean.hxx>
++#include <gp_XYZ.hxx>
++class gp_XYZ;
++class gp_Pnt;
++class gp_Trsf;
++class gp_Ax1;
++class gp_Ax3;
++
++class Bnd_B3d
++{
++public:
++  DEFINE_STANDARD_ALLOC
++
++  //! Empty constructor.
++  Bnd_B3d();
++
++  //! Constructor.
++  Bnd_B3d(const gp_XYZ& theCenter, const gp_XYZ& theHSize);
++
++  //! Returns True if the box is void (non-initialized).
++  Standard_Boolean IsVoid() const;
++
++  //! Reset the box data.
++  void Clear();
++
++  //! Update the box by a point.
++  Standard_EXPORT void Add(const gp_XYZ& thePnt);
++
++  //! Update the box by a point.
++  void Add(const gp_Pnt& thePnt);
++
++  //! Update the box by another box.
++  void Add(const Bnd_B3d& theBox);
++
++  //! Query the lower corner: (Center - HSize). You must make sure that
++  //! the box is NOT VOID (see IsVoid()), otherwise the method returns
++  //! irrelevant result.
++  gp_XYZ CornerMin() const;
++
++  //! Query the upper corner: (Center + HSize). You must make sure that
++  //! the box is NOT VOID (see IsVoid()), otherwise the method returns
++  //! irrelevant result.
++  gp_XYZ CornerMax() const;
++
++  //! Query the square diagonal. If the box is VOID (see method IsVoid())
++  //! then a very big real value is returned.
++  Standard_Real SquareExtent() const;
++
++  //! Extend the Box by the absolute value of theDiff.
++  void Enlarge(const Standard_Real theDiff);
++
++  //! Limit the Box by the internals of theOtherBox.
++  //! Returns True if the limitation takes place, otherwise False
++  //! indicating that the boxes do not intersect.
++  Standard_EXPORT Standard_Boolean Limit(const Bnd_B3d& theOtherBox);
++
++  //! Transform the bounding box with the given transformation.
++  //! The resulting box will be larger if theTrsf contains rotation.
++  Standard_NODISCARD Standard_EXPORT Bnd_B3d Transformed(const gp_Trsf& theTrsf) const;
++
++  //! Check the given point for the inclusion in the Box.
++  //! Returns True if the point is outside.
++  Standard_Boolean IsOut(const gp_XYZ& thePnt) const;
++
++  //! Check a sphere for the intersection with the current box.
++  //! Returns True if there is no intersection between boxes. If the
++  //! parameter 'IsSphereHollow' is True, then the intersection is not
++  //! reported for a box that is completely inside the sphere (otherwise
++  //! this method would report an intersection).
++  Standard_EXPORT Standard_Boolean
++    IsOut(const gp_XYZ&          theCenter,
++          const Standard_Real    theRadius,
++          const Standard_Boolean isSphereHollow = Standard_False) const;
++
++  //! Check the given box for the intersection with the current box.
++  //! Returns True if there is no intersection between boxes.
++  Standard_Boolean IsOut(const Bnd_B3d& theOtherBox) const;
++
++  //! Check the given box oriented by the given transformation
++  //! for the intersection with the current box.
++  //! Returns True if there is no intersection between boxes.
++  Standard_EXPORT Standard_Boolean IsOut(const Bnd_B3d& theOtherBox, const gp_Trsf& theTrsf) const;
++
++  //! Check the given Line for the intersection with the current box.
++  //! Returns True if there is no intersection.
++  //! isRay==True means intersection check with the positive half-line
++  //! theOverthickness is the addition to the size of the current box
++  //! (may be negative). If positive, it can be treated as the thickness
++  //! of the line 'theLine' or the radius of the cylinder along 'theLine'
++  Standard_EXPORT Standard_Boolean IsOut(const gp_Ax1&          theLine,
++                                         const Standard_Boolean isRay            = Standard_False,
++                                         const Standard_Real    theOverthickness = 0.0) const;
++
++  //! Check the given Plane for the intersection with the current box.
++  //! Returns True if there is no intersection.
++  Standard_EXPORT Standard_Boolean IsOut(const gp_Ax3& thePlane) const;
++
++  //! Check that the box 'this' is inside the given box 'theBox'. Returns
++  //! True if 'this' box is fully inside 'theBox'.
++  Standard_Boolean IsIn(const Bnd_B3d& theBox) const;
++
++  //! Check that the box 'this' is inside the given box 'theBox'
++  //! transformed by 'theTrsf'. Returns True if 'this' box is fully
++  //! inside the transformed 'theBox'.
++  Standard_EXPORT Standard_Boolean IsIn(const Bnd_B3d& theBox, const gp_Trsf& theTrsf) const;
++
++  //! Set the Center coordinates
++  void SetCenter(const gp_XYZ& theCenter);
++
++  //! Set the HSize (half-diagonal) coordinates.
++  //! All components of theHSize must be non-negative.
++  void SetHSize(const gp_XYZ& theHSize);
++
++protected:
++  Standard_Real myCenter[3];
++  Standard_Real myHSize[3];
++
++private:
++};
++
++#define RealType Standard_Real
++#define RealType_hxx <Standard_Real.hxx>
++#define Bnd_B3x Bnd_B3d
++#define Bnd_B3x_hxx <Bnd_B3d.hxx>
++
++#include <Bnd_B3x.lxx>
++
++#undef RealType
++#undef RealType_hxx
++#undef Bnd_B3x
++#undef Bnd_B3x_hxx
++
++#endif // _Bnd_B3d_HeaderFile
+diff --git a/salomesmesh/occt8-compat/Bnd/Bnd_B3x.gxx b/salomesmesh/occt8-compat/Bnd/Bnd_B3x.gxx
+new file mode 100644
+index 0000000..673f643
+--- /dev/null
++++ b/salomesmesh/occt8-compat/Bnd/Bnd_B3x.gxx
+@@ -0,0 +1,474 @@
++// Created on: 2005-09-08
++// Created by: Alexander GRIGORIEV
++// Copyright (c) 2005-2014 OPEN CASCADE SAS
++//
++// This file is part of Open CASCADE Technology software library.
++//
++// This library is free software; you can redistribute it and/or modify it under
++// the terms of the GNU Lesser General Public License version 2.1 as published
++// by the Free Software Foundation, with special exception defined in the file
++// OCCT_LGPL_EXCEPTION.txt. Consult the file LICENSE_LGPL_21.txt included in OCCT
++// distribution for complete text of the license and disclaimer of any warranty.
++//
++// Alternatively, this file may be used under the terms of Open CASCADE
++// commercial license or contractual agreement.
++
++inline Standard_Boolean _compareDist  (const RealType aHSize[3],
++                                       const RealType aDist [3])
++{
++  return (Abs(aDist[0]) > aHSize[0] ||
++          Abs(aDist[1]) > aHSize[1] ||
++          Abs(aDist[2]) > aHSize[2]);
++}
++
++inline Standard_Boolean _compareDistD (const gp_XYZ& aHSize,const gp_XYZ& aDist)
++{
++  return (Abs(aDist.X()) > aHSize.X() ||
++          Abs(aDist.Y()) > aHSize.Y() ||
++          Abs(aDist.Z()) > aHSize.Z());
++}
++
++//=======================================================================
++//function : Add
++//purpose  : Update the box by a point
++//=======================================================================
++
++void Bnd_B3x::Add (const gp_XYZ& thePnt) {
++  if (IsVoid()) {
++    myCenter[0] = RealType(thePnt.X());
++    myCenter[1] = RealType(thePnt.Y());
++    myCenter[2] = RealType(thePnt.Z());
++    myHSize [0] = 0.;
++    myHSize [1] = 0.;
++    myHSize [2] = 0.;
++  } else {
++    const RealType aDiff[3] = {
++      RealType(thePnt.X()) - myCenter[0],
++      RealType(thePnt.Y()) - myCenter[1],
++      RealType(thePnt.Z()) - myCenter[2]
++    };
++    if (aDiff[0] > myHSize[0]) {
++      const RealType aShift = (aDiff[0] - myHSize[0]) / 2;
++      myCenter[0] += aShift;
++      myHSize [0] += aShift;
++    } else if (aDiff[0] < -myHSize[0]) {
++      const RealType aShift = (aDiff[0] + myHSize[0]) / 2;
++      myCenter[0] += aShift;
++      myHSize [0] -= aShift;
++    }
++    if (aDiff[1] > myHSize[1]) {
++      const RealType aShift = (aDiff[1] - myHSize[1]) / 2;
++      myCenter[1] +=aShift;
++      myHSize [1] +=aShift;
++    } else if (aDiff[1] < -myHSize[1]) {
++      const RealType aShift = (aDiff[1] + myHSize[1]) / 2;
++      myCenter[1] += aShift;
++      myHSize [1] -= aShift;
++    }
++    if (aDiff[2] > myHSize[2]) {
++      const RealType aShift = (aDiff[2] - myHSize[2]) / 2;
++      myCenter[2] +=aShift;
++      myHSize [2] +=aShift;
++    } else if (aDiff[2] < -myHSize[2]) {
++      const RealType aShift = (aDiff[2] + myHSize[2]) / 2;
++      myCenter[2] += aShift;
++      myHSize [2] -= aShift;
++    }
++  }
++}
++
++//=======================================================================
++//function : Limit
++//purpose  : limit the current box with the internals of theBox
++//=======================================================================
++
++Standard_Boolean Bnd_B3x::Limit (const Bnd_B3x& theBox)
++{
++  Standard_Boolean aResult (Standard_False);
++  const RealType diffC[3] = {
++    theBox.myCenter[0] - myCenter[0],
++    theBox.myCenter[1] - myCenter[1],
++    theBox.myCenter[2] - myCenter[2]
++  };
++  const RealType sumH[3] = {
++    theBox.myHSize[0] + myHSize[0],
++    theBox.myHSize[1] + myHSize[1],
++    theBox.myHSize[2] + myHSize[2]
++  };
++  // check the condition IsOut
++  if (_compareDist (sumH, diffC) == Standard_False) {
++    const RealType diffH[3] = {
++      theBox.myHSize[0] - myHSize[0],
++      theBox.myHSize[1] - myHSize[1],
++      theBox.myHSize[2] - myHSize[2]
++    };
++    if (diffC[0] - diffH[0] > 0.) {
++      const RealType aShift = (diffC[0] - diffH[0]) / 2; // positive
++      myCenter[0] += aShift;
++      myHSize [0] -= aShift;
++    } else if (diffC[0] + diffH[0] < 0.) {
++      const RealType aShift = (diffC[0] + diffH[0]) / 2; // negative
++      myCenter[0] += aShift;
++      myHSize [0] += aShift;
++    }
++    if (diffC[1] - diffH[1] > 0.) {
++      const RealType aShift = (diffC[1] - diffH[1]) / 2; // positive
++      myCenter[1] += aShift;
++      myHSize [1] -= aShift;
++    } else if (diffC[1] + diffH[1] < 0.) {
++      const RealType aShift = (diffC[1] + diffH[1]) / 2; // negative
++      myCenter[1] += aShift;
++      myHSize [1] += aShift;
++    }
++    if (diffC[2] - diffH[2] > 0.) {
++      const RealType aShift = (diffC[2] - diffH[2]) / 2; // positive
++      myCenter[2] += aShift;
++      myHSize [2] -= aShift;
++    } else if (diffC[2] + diffH[2] < 0.) {
++      const RealType aShift = (diffC[2] + diffH[2]) / 2; // negative
++      myCenter[2] += aShift;
++      myHSize [2] += aShift;
++    }
++    aResult = Standard_True;
++  }
++  return aResult;
++}
++
++//=======================================================================
++//function : Transformed
++//purpose  : 
++//=======================================================================
++
++Bnd_B3x Bnd_B3x::Transformed (const gp_Trsf& theTrsf) const
++{
++  Bnd_B3x aResult;
++  const gp_TrsfForm aForm = theTrsf.Form();
++  const Standard_Real aScale = theTrsf.ScaleFactor();
++  const Standard_Real aScaleAbs = Abs(aScale);
++  if (aForm == gp_Identity)
++    aResult = * this;
++  else if (aForm== gp_Translation || aForm== gp_PntMirror || aForm== gp_Scale)
++  {
++    aResult.myCenter[0] =
++      (RealType)(myCenter[0] * aScale + theTrsf.TranslationPart().X());
++    aResult.myCenter[1] =
++      (RealType)(myCenter[1] * aScale + theTrsf.TranslationPart().Y());
++    aResult.myCenter[2] =
++      (RealType)(myCenter[2] * aScale + theTrsf.TranslationPart().Z());
++    aResult.myHSize[0] = (RealType)(myHSize[0] * aScaleAbs);
++    aResult.myHSize[1] = (RealType)(myHSize[1] * aScaleAbs);
++    aResult.myHSize[2] = (RealType)(myHSize[2] * aScaleAbs);
++  } else {
++    gp_XYZ aCenter ((Standard_Real)myCenter[0],
++                    (Standard_Real)myCenter[1],
++                    (Standard_Real)myCenter[2]);
++    theTrsf.Transforms (aCenter);
++    aResult.myCenter[0] = (RealType)aCenter.X();
++    aResult.myCenter[1] = (RealType)aCenter.Y();
++    aResult.myCenter[2] = (RealType)aCenter.Z();
++
++    const Standard_Real * aMat = &theTrsf.HVectorialPart().Value(1,1);
++    aResult.myHSize[0] = (RealType)(aScaleAbs * (Abs(aMat[0]) * myHSize[0]+
++                                                 Abs(aMat[1]) * myHSize[1]+
++                                                 Abs(aMat[2]) * myHSize[2]));
++    aResult.myHSize[1] = (RealType)(aScaleAbs * (Abs(aMat[3]) * myHSize[0]+
++                                                 Abs(aMat[4]) * myHSize[1]+
++                                                 Abs(aMat[5]) * myHSize[2]));
++    aResult.myHSize[2] = (RealType)(aScaleAbs * (Abs(aMat[6]) * myHSize[0]+
++                                                 Abs(aMat[7]) * myHSize[1]+
++                                                 Abs(aMat[8]) * myHSize[2]));
++  }
++  return aResult;
++}
++
++//=======================================================================
++//function : IsOut
++//purpose  : Intersection Box - Sphere
++//=======================================================================
++
++Standard_Boolean Bnd_B3x::IsOut (const gp_XYZ&          theCenter,
++                                 const Standard_Real    theRadius,
++                                 const Standard_Boolean isSphereHollow) const
++{
++  Standard_Boolean aResult (Standard_True);
++  if (isSphereHollow == Standard_False) {
++    // vector from the center of the sphere to the nearest box face
++    const Standard_Real aDist[3] = {
++      Abs(theCenter.X()-Standard_Real(myCenter[0])) - Standard_Real(myHSize[0]),
++      Abs(theCenter.Y()-Standard_Real(myCenter[1])) - Standard_Real(myHSize[1]),
++      Abs(theCenter.Z()-Standard_Real(myCenter[2])) - Standard_Real(myHSize[2])
++    };
++    Standard_Real aD (0.);
++    if (aDist[0] > 0.)
++      aD  = aDist[0]*aDist[0];
++    if (aDist[1] > 0.)
++      aD += aDist[1]*aDist[1];
++    if (aDist[2] > 0.)
++      aD += aDist[2]*aDist[2];
++    aResult = (aD > theRadius*theRadius);
++  } else {
++    const Standard_Real aDistC[3] = {
++      Abs(theCenter.X()-Standard_Real(myCenter[0])),
++      Abs(theCenter.Y()-Standard_Real(myCenter[1])),
++      Abs(theCenter.Z()-Standard_Real(myCenter[2]))
++    };
++    // vector from the center of the sphere to the nearest box face
++    Standard_Real aDist[3] = {
++      aDistC[0] - Standard_Real(myHSize[0]),
++      aDistC[1] - Standard_Real(myHSize[1]),
++      aDistC[2] - Standard_Real(myHSize[2])
++    };
++    Standard_Real aD (0.);
++    if (aDist[0] > 0.)
++      aD  = aDist[0]*aDist[0];
++    if (aDist[1] > 0.)
++      aD += aDist[1]*aDist[1];
++    if (aDist[2] > 0.)
++      aD += aDist[2]*aDist[2];
++    if (aD < theRadius*theRadius) {
++      // the box intersects the solid sphere; check if it is completely
++      // inside the circle (in such case return isOut==True)
++      aDist[0] = aDistC[0] + Standard_Real(myHSize[0]);
++      aDist[1] = aDistC[1] + Standard_Real(myHSize[1]);
++      aDist[2] = aDistC[2] + Standard_Real(myHSize[2]);
++      if (aDist[0]*aDist[0]+aDist[1]*aDist[1]+aDist[2]*aDist[2]
++           > theRadius*theRadius)
++        aResult = Standard_False;
++    }
++  }
++  return aResult;
++}
++
++//=======================================================================
++//function : IsOut
++//purpose  : Intersection Box - transformed Box
++//=======================================================================
++
++Standard_Boolean Bnd_B3x::IsOut (const Bnd_B3x& theBox,
++                                 const gp_Trsf& theTrsf) const
++{
++  Standard_Boolean aResult (Standard_False);
++  const gp_TrsfForm aForm = theTrsf.Form();
++  const Standard_Real aScale = theTrsf.ScaleFactor();
++  const Standard_Real aScaleAbs = Abs(aScale);
++  if (aForm == gp_Translation || aForm == gp_Identity ||
++      aForm == gp_PntMirror   || aForm == gp_Scale)
++  {
++    aResult =
++      (Abs (RealType(theBox.myCenter[0]*aScale + theTrsf.TranslationPart().X())
++            - myCenter[0])
++         > RealType (theBox.myHSize[0]*aScaleAbs) + myHSize[0] ||
++       Abs (RealType(theBox.myCenter[1]*aScale + theTrsf.TranslationPart().Y())
++            - myCenter[1])
++         > RealType (theBox.myHSize[1]*aScaleAbs) + myHSize[1] ||
++       Abs (RealType(theBox.myCenter[2]*aScale + theTrsf.TranslationPart().Y())
++            - myCenter[2])
++         > RealType (theBox.myHSize[2]*aScaleAbs) + myHSize[2]);
++
++  }
++  else {
++    // theBox is transformed and we check the resulting (enlarged) box against
++    // 'this' box.
++    const Standard_Real * aMat = &theTrsf.HVectorialPart().Value(1,1);
++
++    gp_XYZ aCenter ((Standard_Real)theBox.myCenter[0],
++                    (Standard_Real)theBox.myCenter[1],
++                    (Standard_Real)theBox.myCenter[2]);
++    theTrsf.Transforms (aCenter);
++    const Standard_Real aDist[3] = {
++      aCenter.X() - (Standard_Real)myCenter[0],
++      aCenter.Y() - (Standard_Real)myCenter[1],
++      aCenter.Z() - (Standard_Real)myCenter[2]
++    };
++    const Standard_Real aMatAbs[9] = {
++      Abs(aMat[0]), Abs(aMat[1]), Abs(aMat[2]), Abs(aMat[3]), Abs(aMat[4]),
++      Abs(aMat[5]), Abs(aMat[6]), Abs(aMat[7]), Abs(aMat[8])
++    };
++    if (Abs(aDist[0]) > (aScaleAbs*(aMatAbs[0]*theBox.myHSize[0]+
++                                    aMatAbs[1]*theBox.myHSize[1]+
++                                    aMatAbs[2]*theBox.myHSize[2]) +
++                         (Standard_Real)myHSize[0])    ||
++        Abs(aDist[1]) > (aScaleAbs*(aMatAbs[3]*theBox.myHSize[0]+
++                                    aMatAbs[4]*theBox.myHSize[1]+
++                                    aMatAbs[5]*theBox.myHSize[2]) +
++                         (Standard_Real)myHSize[1])    ||
++        Abs(aDist[2]) > (aScaleAbs*(aMatAbs[6]*theBox.myHSize[0]+
++                                    aMatAbs[7]*theBox.myHSize[1]+
++                                    aMatAbs[8]*theBox.myHSize[2]) +
++                         (Standard_Real)myHSize[2]))
++      aResult = Standard_True;
++
++    else {
++    // theBox is rotated, scaled and translated. We apply the reverse
++    // translation and scaling then check against the rotated box 'this'
++    if ((Abs(aMat[0]*aDist[0]+aMat[3]*aDist[1]+aMat[6]*aDist[2])
++         > theBox.myHSize[0]*aScaleAbs + (aMatAbs[0]*myHSize[0] +
++                                          aMatAbs[3]*myHSize[1] +
++                                          aMatAbs[6]*myHSize[2])) ||
++        (Abs(aMat[1]*aDist[0]+aMat[4]*aDist[1]+aMat[7]*aDist[2])
++         > theBox.myHSize[1]*aScaleAbs + (aMatAbs[1]*myHSize[0] +
++                                          aMatAbs[4]*myHSize[1] +
++                                          aMatAbs[7]*myHSize[2])) ||
++        (Abs(aMat[2]*aDist[0]+aMat[5]*aDist[1]+aMat[8]*aDist[2])
++         > theBox.myHSize[2]*aScaleAbs + (aMatAbs[2]*myHSize[0] +
++                                          aMatAbs[5]*myHSize[1] +
++                                          aMatAbs[8]*myHSize[2])))
++        aResult = Standard_True;
++    }
++  }
++  return aResult;
++}
++
++//=======================================================================
++//function : IsOut
++//purpose  : 
++//=======================================================================
++
++Standard_Boolean Bnd_B3x::IsOut (const gp_Ax3& thePlane) const
++{
++  if (IsVoid())
++    return Standard_True;
++  const gp_XYZ& anOrigin = thePlane.Location().XYZ();
++  const gp_XYZ& aDir     = thePlane.Direction().XYZ();
++  const gp_XYZ  aBoxCenter ((Standard_Real)myCenter[0],
++                            (Standard_Real)myCenter[1],
++                            (Standard_Real)myCenter[2]);
++  const Standard_Real aDist0 = (aBoxCenter - anOrigin) * aDir;
++  // Find the signed distances from two opposite corners of the box to the plane
++  // If the distances are not the same sign, then the plane crosses the box
++  const Standard_Real aDist1 =   // proj of HSize on aDir
++    Standard_Real(myHSize[0]) * Abs(aDir.X()) +
++    Standard_Real(myHSize[1]) * Abs(aDir.Y()) +
++    Standard_Real(myHSize[2]) * Abs(aDir.Z());
++  return ((aDist0 + aDist1) * (aDist0 - aDist1) > 0.);
++}
++
++//=======================================================================
++//function : IsOut
++//purpose  : 
++//=======================================================================
++
++Standard_Boolean Bnd_B3x::IsOut (const gp_Ax1&          theLine,
++                                 const Standard_Boolean isRay,
++                                 const Standard_Real    theOverthickness) const
++{
++  const Standard_Real aRes = gp::Resolution() * 100.;
++  if (IsVoid())
++    return Standard_True;
++  Standard_Real
++    anInter0[2] = {-RealLast(), RealLast()},
++    anInter1[2] = {-RealLast(), RealLast()};
++  const gp_XYZ& aDir = theLine.Direction().XYZ();
++  const gp_XYZ  aDiff ((Standard_Real)myCenter[0] - theLine.Location().X(),
++                       (Standard_Real)myCenter[1] - theLine.Location().Y(),
++                       (Standard_Real)myCenter[2] - theLine.Location().Z());
++
++  // Find the parameter interval in X dimension
++  Standard_Real aHSize = (Standard_Real)myHSize[0]+theOverthickness;
++  if (aDir.X() > aRes) {
++    anInter0[0]= (aDiff.X() - aHSize) / aDir.X();
++    anInter0[1]= (aDiff.X() + aHSize) / aDir.X();
++  } else if (aDir.X() < -aRes) {
++    anInter0[0]= (aDiff.X() + aHSize) / aDir.X();
++    anInter0[1]= (aDiff.X() - aHSize) / aDir.X();
++  } else
++    // the line is orthogonal to OX axis. Test for inclusion in box limits
++    if (Abs(aDiff.X()) > aHSize)
++      return Standard_True;
++  
++  // Find the parameter interval in Y dimension
++  aHSize = (Standard_Real)myHSize[1]+theOverthickness;
++  if (aDir.Y() > aRes) {
++    anInter1[0]= (aDiff.Y() - aHSize) / aDir.Y();
++    anInter1[1]= (aDiff.Y() + aHSize) / aDir.Y();
++  } else if (aDir.Y() < -aRes) {
++    anInter1[0]= (aDiff.Y() + aHSize) / aDir.Y();
++    anInter1[1]= (aDiff.Y() - aHSize) / aDir.Y();
++  } else
++    // the line is orthogonal to OY axis. Test for inclusion in box limits
++    if (Abs(aDiff.Y()) > aHSize)
++      return Standard_True;
++
++  // Intersect Y-interval with X-interval 
++  if (anInter0[0] > (anInter1[1] + aRes) || anInter0[1] < (anInter1[0] - aRes))
++    return Standard_True;
++  if (anInter1[0] > anInter0[0])
++    anInter0[0] = anInter1[0];
++  if (anInter1[1] < anInter0[1])
++    anInter0[1] = anInter1[1];
++  if (isRay && anInter0[1] < -aRes)
++    return Standard_True;
++
++  // Find the parameter interval in Z dimension
++  aHSize = (Standard_Real)myHSize[2]+theOverthickness;
++  if (aDir.Z() > aRes) {
++    anInter1[0]= (aDiff.Z() - aHSize) / aDir.Z();
++    anInter1[1]= (aDiff.Z() + aHSize) / aDir.Z();
++  } else if (aDir.Z() < -aRes) {
++    anInter1[0]= (aDiff.Z() + aHSize) / aDir.Z();
++    anInter1[1]= (aDiff.Z() - aHSize) / aDir.Z();
++  } else
++    // the line is orthogonal to OZ axis. Test for inclusion in box limits
++    return (Abs(aDiff.Z()) > aHSize);
++  if (isRay && anInter1[1] < -aRes)
++    return Standard_True;
++
++  return (anInter0[0] > (anInter1[1]+aRes) || anInter0[1] < (anInter1[0]-aRes));
++}
++
++//=======================================================================
++//function : IsIn
++//purpose  : Test the complete inclusion of this box in transformed theOtherBox
++//=======================================================================
++
++Standard_Boolean Bnd_B3x::IsIn (const Bnd_B3x& theBox,
++                                const gp_Trsf& theTrsf) const
++{
++  Standard_Boolean aResult (Standard_False);
++  const gp_TrsfForm aForm = theTrsf.Form();
++  const Standard_Real aScale = theTrsf.ScaleFactor();
++  const Standard_Real aScaleAbs = Abs(aScale);
++  if (aForm == gp_Translation || aForm == gp_Identity ||
++      aForm == gp_PntMirror   || aForm == gp_Scale)
++  {
++    aResult =
++      (Abs (RealType(theBox.myCenter[0]*aScale + theTrsf.TranslationPart().X())
++            - myCenter[0])
++         < RealType (theBox.myHSize[0]*aScaleAbs) - myHSize[0] &&
++       Abs (RealType(theBox.myCenter[1]*aScale + theTrsf.TranslationPart().Y())
++            - myCenter[1])
++         < RealType (theBox.myHSize[1]*aScaleAbs) - myHSize[1] &&
++       Abs (RealType(theBox.myCenter[2]*aScale + theTrsf.TranslationPart().Y())
++            - myCenter[2])
++         < RealType (theBox.myHSize[2]*aScaleAbs) - myHSize[2]);
++
++  } else {
++    // theBox is rotated, scaled and translated. We apply the reverse
++    // translation and scaling then check against the rotated box 'this'
++    const Standard_Real * aMat = &theTrsf.HVectorialPart().Value(1,1);
++    gp_XYZ aCenter ((Standard_Real)theBox.myCenter[0],
++                    (Standard_Real)theBox.myCenter[1],
++                    (Standard_Real)theBox.myCenter[2]);
++    theTrsf.Transforms (aCenter);
++    const Standard_Real aDist[3] = {
++      aCenter.X() - (Standard_Real)myCenter[0],
++      aCenter.Y() - (Standard_Real)myCenter[1],
++      aCenter.Z() - (Standard_Real)myCenter[2]
++    };
++    if ((Abs(aMat[0]*aDist[0]+aMat[3]*aDist[1]+aMat[6]*aDist[2])
++         < theBox.myHSize[0]*aScaleAbs - (Abs(aMat[0])*myHSize[0] +
++                                          Abs(aMat[3])*myHSize[1] +
++                                          Abs(aMat[6])*myHSize[2])) &&
++        (Abs(aMat[1]*aDist[0]+aMat[4]*aDist[1]+aMat[7]*aDist[2])
++         < theBox.myHSize[1]*aScaleAbs - (Abs(aMat[1])*myHSize[0] +
++                                          Abs(aMat[4])*myHSize[1] +
++                                          Abs(aMat[7])*myHSize[2])) &&
++        (Abs(aMat[2]*aDist[0]+aMat[5]*aDist[1]+aMat[8]*aDist[2])
++         < theBox.myHSize[2]*aScaleAbs - (Abs(aMat[2])*myHSize[0] +
++                                          Abs(aMat[5])*myHSize[1] +
++                                          Abs(aMat[8])*myHSize[2])))
++      aResult = Standard_True;
++  }
++  return aResult;
++}
++
+diff --git a/salomesmesh/occt8-compat/Bnd/Bnd_B3x.lxx b/salomesmesh/occt8-compat/Bnd/Bnd_B3x.lxx
+new file mode 100644
+index 0000000..2c3c275
+--- /dev/null
++++ b/salomesmesh/occt8-compat/Bnd/Bnd_B3x.lxx
+@@ -0,0 +1,173 @@
++// Created on: 2005-09-08
++// Created by: Alexander GRIGORIEV
++// Copyright (c) 2005-2014 OPEN CASCADE SAS
++//
++// This file is part of Open CASCADE Technology software library.
++//
++// This library is free software; you can redistribute it and/or modify it under
++// the terms of the GNU Lesser General Public License version 2.1 as published
++// by the Free Software Foundation, with special exception defined in the file
++// OCCT_LGPL_EXCEPTION.txt. Consult the file LICENSE_LGPL_21.txt included in OCCT
++// distribution for complete text of the license and disclaimer of any warranty.
++//
++// Alternatively, this file may be used under the terms of Open CASCADE
++// commercial license or contractual agreement.
++
++#include <gp_Pnt.hxx>
++
++#ifndef Bnd_B3x_RealLast
++  #define Bnd_B3x_RealLast RealType(1e30);
++#endif
++
++/**
++ * Empty constructor
++ */
++inline Bnd_B3x::Bnd_B3x()
++{
++  Clear();
++}
++
++/**
++ * Constructor.
++ * @param theCenter
++ *   Center of the created box
++ * @param theHSize
++ *   Half-diagonal of the box, both X and Y should be non-negative
++ */
++inline Bnd_B3x::Bnd_B3x(const gp_XYZ& theCenter, const gp_XYZ& theHSize)
++{
++  myCenter[0] = RealType(theCenter.X());
++  myCenter[1] = RealType(theCenter.Y());
++  myCenter[2] = RealType(theCenter.Z());
++  myHSize[0]  = RealType(theHSize.X());
++  myHSize[1]  = RealType(theHSize.Y());
++  myHSize[2]  = RealType(theHSize.Z());
++}
++
++/**
++ * Reset the box data.
++ */
++inline void Bnd_B3x::Clear()
++{
++  myCenter[0] = Bnd_B3x_RealLast;
++  myCenter[1] = Bnd_B3x_RealLast;
++  myCenter[2] = Bnd_B3x_RealLast;
++  myHSize[0]  = -Bnd_B3x_RealLast;
++  myHSize[1]  = -Bnd_B3x_RealLast;
++  myHSize[2]  = -Bnd_B3x_RealLast;
++}
++
++/**
++ * Check if the box is empty.
++ */
++inline Standard_Boolean Bnd_B3x::IsVoid() const
++{
++  return (myHSize[0] < -1e-5);
++}
++
++/**
++ * Update the box by point.
++ */
++inline void Bnd_B3x::Add(const gp_Pnt& thePnt)
++{
++  Add(thePnt.XYZ());
++}
++
++/**
++ * Update the box by another box.
++ */
++inline void Bnd_B3x::Add(const Bnd_B3x& theBox)
++{
++  if (theBox.IsVoid() == Standard_False)
++  {
++    Add(theBox.CornerMin());
++    Add(theBox.CornerMax());
++  }
++}
++
++/**
++ * Query a box corner.
++ */
++inline gp_XYZ Bnd_B3x::CornerMin() const
++{
++  return gp_XYZ(myCenter[0] - myHSize[0], myCenter[1] - myHSize[1], myCenter[2] - myHSize[2]);
++}
++
++/**
++ * Query a box corner.
++ */
++inline gp_XYZ Bnd_B3x::CornerMax() const
++{
++  return gp_XYZ(myCenter[0] + myHSize[0], myCenter[1] + myHSize[1], myCenter[2] + myHSize[2]);
++}
++
++/**
++ * Query the square diagonal.
++ */
++inline Standard_Real Bnd_B3x::SquareExtent() const
++{
++  return 4 * (myHSize[0] * myHSize[0] + myHSize[1] * myHSize[1] + myHSize[2] * myHSize[2]);
++}
++
++/**
++ * Set the Center coordinates.
++ */
++inline void Bnd_B3x::SetCenter(const gp_XYZ& theCenter)
++{
++  myCenter[0] = RealType(theCenter.X());
++  myCenter[1] = RealType(theCenter.Y());
++  myCenter[2] = RealType(theCenter.Z());
++}
++
++/**
++ * Set the Center coordinates.
++ */
++inline void Bnd_B3x::SetHSize(const gp_XYZ& theHSize)
++{
++  myHSize[0] = RealType(theHSize.X());
++  myHSize[1] = RealType(theHSize.Y());
++  myHSize[2] = RealType(theHSize.Z());
++}
++
++/**
++ * Increase the box.
++ * @param aDiff
++ *   absolute value of this parameter is added to the box size in all dimensions.
++ */
++inline void Bnd_B3x::Enlarge(const Standard_Real aDiff)
++{
++  const Standard_Real aD = Abs(aDiff);
++  myHSize[0] += RealType(aD);
++  myHSize[1] += RealType(aD);
++  myHSize[2] += RealType(aD);
++}
++
++/**
++ * Intersection Box - Point
++ */
++inline Standard_Boolean Bnd_B3x::IsOut(const gp_XYZ& thePnt) const
++{
++  return (Abs(RealType(thePnt.X()) - myCenter[0]) > myHSize[0]
++          || Abs(RealType(thePnt.Y()) - myCenter[1]) > myHSize[1]
++          || Abs(RealType(thePnt.Z()) - myCenter[2]) > myHSize[2]);
++}
++
++/**
++ * Intersection Box-Box.
++ */
++inline Standard_Boolean Bnd_B3x::IsOut(const Bnd_B3x& theBox) const
++{
++  return (Abs(theBox.myCenter[0] - myCenter[0]) > theBox.myHSize[0] + myHSize[0]
++          || Abs(theBox.myCenter[1] - myCenter[1]) > theBox.myHSize[1] + myHSize[1]
++          || Abs(theBox.myCenter[2] - myCenter[2]) > theBox.myHSize[2] + myHSize[2]);
++}
++
++/**
++ * Test the complete inclusion of this box in theBox.
++ */
++inline Standard_Boolean Bnd_B3x::IsIn(const Bnd_B3x& theBox) const
++{
++  return (Abs(theBox.myCenter[0] - myCenter[0]) < theBox.myHSize[0] - myHSize[0]
++          && Abs(theBox.myCenter[1] - myCenter[1]) < theBox.myHSize[1] - myHSize[1]
++          && Abs(theBox.myCenter[2] - myCenter[2]) < theBox.myHSize[2] - myHSize[2]);
++}
+diff --git a/salomesmesh/occt8-compat/README.md b/salomesmesh/occt8-compat/README.md
+new file mode 100644
+index 0000000..71b1f0f
+--- /dev/null
++++ b/salomesmesh/occt8-compat/README.md
+@@ -0,0 +1,36 @@
++# OCCT 8.0 compatibility layer for bundled SMESH 7.7.1 (S5 data-patch 0002)
++
++FreeCAD's bundled salomesmesh (SMESH 7.7.1.0) predates OCCT 8: upstream
++FreeCAD pairs this snapshot with OCCT 8 only through the *external*
++SMESH 9.9 package (its own dev environment still pins OCCT 7.8). The
++bundled sources reference a bounded set of OCCT headers/classes that
++OCCT 8.0 removed. This directory — added files only, no SMESH source
++edits — bridges exactly that set:
++
++- `include/` — 34 headers copied **verbatim from OCCT 8.0.1 itself**
++  (`src/Deprecated/NCollectionAliases/` in the OCCT V8_0_1 tree):
++  OCCT's own deprecated typedef aliases for the TColgp / TColStd /
++  TopTools / MeshVS / Poly / ShapeAnalysis collection headers. They
++  exist in OCCT 8.0.1's official install but were pruned from the
++  cascade-ios staging our OCCT prefix is built from, so S5 re-stages
++  them here. LGPL 2.1 + OCCT exception, as upstream.
++- `include/Expr_Array1OfNamedUnknown.hxx` — verbatim OCCT 7.9.3
++  typedef header (the one alias OCCT 8.0 did not carry into
++  Deprecated/; it is a pure `NCollection_Array1` typedef).
++- `include/TopTools_ListIteratorOfListOfShape.hxx`,
++  `include/Adaptor3d_HSurface.hxx` — two hand-written forward shims
++  (see the comments inside each).
++- `Bnd/` + `cxx/` — `Bnd_B2d` / `Bnd_B3d`, two small value classes
++  OCCT 8.0 removed outright (SMESH's octree/quadtree box types),
++  copied **verbatim from OCCT 7.9.3** (headers, `.lxx`/`.gxx`
++  generics, and the `*_0.cxx` instantiations) and compiled by the
++  S5 superproject into `libocct8compat.a`. LGPL 2.1 + OCCT
++  exception, unmodified.
++
++Explicitly *not* needed (verified by census of the compiled source
++set, 2026-10-29): the NCollection Define-macro headers and
++`NCollection_BaseCollection` (only dead SMESH headers reference
++them), `Perf_Meter` (commented out), `MMgt_TShared` /
++`Handle_MeshVS_DataSource3D` / SMESH's old RTTI `.ixx` (all inside
++`OCC_VERSION_HEX < 0x070000` guards), `Standard_Failure::Raise`
++(zero uses), `TColGeom` (zero uses).
+diff --git a/salomesmesh/occt8-compat/cxx/Bnd_B2d_0.cxx b/salomesmesh/occt8-compat/cxx/Bnd_B2d_0.cxx
+new file mode 100644
+index 0000000..60eb30f
+--- /dev/null
++++ b/salomesmesh/occt8-compat/cxx/Bnd_B2d_0.cxx
+@@ -0,0 +1,28 @@
++// Created on: 1991-01-08
++// Created by: Didier Piffault
++// Copyright (c) 1991-1999 Matra Datavision
++// Copyright (c) 1999-2014 OPEN CASCADE SAS
++//
++// This file is part of Open CASCADE Technology software library.
++//
++// This library is free software; you can redistribute it and/or modify it under
++// the terms of the GNU Lesser General Public License version 2.1 as published
++// by the Free Software Foundation, with special exception defined in the file
++// OCCT_LGPL_EXCEPTION.txt. Consult the file LICENSE_LGPL_21.txt included in OCCT
++// distribution for complete text of the license and disclaimer of any warranty.
++//
++// Alternatively, this file may be used under the terms of Open CASCADE
++// commercial license or contractual agreement.
++
++#include <Bnd_B2d.hxx>
++
++#include <gp_XY.hxx>
++#include <gp_Pnt2d.hxx>
++#include <gp_Trsf2d.hxx>
++#include <gp_Ax2d.hxx>
++
++#define RealType Standard_Real
++#define RealType_hxx <Standard_Real.hxx>
++#define Bnd_B2x Bnd_B2d
++#define Bnd_B2x_hxx <Bnd_B2d.hxx>
++#include "../Bnd/Bnd_B2x.gxx"
+diff --git a/salomesmesh/occt8-compat/cxx/Bnd_B3d_0.cxx b/salomesmesh/occt8-compat/cxx/Bnd_B3d_0.cxx
+new file mode 100644
+index 0000000..c5e840e
+--- /dev/null
++++ b/salomesmesh/occt8-compat/cxx/Bnd_B3d_0.cxx
+@@ -0,0 +1,29 @@
++// Created on: 1991-01-08
++// Created by: Didier Piffault
++// Copyright (c) 1991-1999 Matra Datavision
++// Copyright (c) 1999-2014 OPEN CASCADE SAS
++//
++// This file is part of Open CASCADE Technology software library.
++//
++// This library is free software; you can redistribute it and/or modify it under
++// the terms of the GNU Lesser General Public License version 2.1 as published
++// by the Free Software Foundation, with special exception defined in the file
++// OCCT_LGPL_EXCEPTION.txt. Consult the file LICENSE_LGPL_21.txt included in OCCT
++// distribution for complete text of the license and disclaimer of any warranty.
++//
++// Alternatively, this file may be used under the terms of Open CASCADE
++// commercial license or contractual agreement.
++
++#include <Bnd_B3d.hxx>
++
++#include <gp_XYZ.hxx>
++#include <gp_Pnt.hxx>
++#include <gp_Trsf.hxx>
++#include <gp_Ax1.hxx>
++#include <gp_Ax3.hxx>
++
++#define RealType Standard_Real
++#define RealType_hxx <Standard_Real.hxx>
++#define Bnd_B3x Bnd_B3d
++#define Bnd_B3x_hxx <Bnd_B3d.hxx>
++#include "../Bnd/Bnd_B3x.gxx"
+diff --git a/salomesmesh/occt8-compat/include/Adaptor3d_HSurface.hxx b/salomesmesh/occt8-compat/include/Adaptor3d_HSurface.hxx
+new file mode 100644
+index 0000000..21687e1
+--- /dev/null
++++ b/salomesmesh/occt8-compat/include/Adaptor3d_HSurface.hxx
+@@ -0,0 +1,15 @@
++// S5 data-patch 0002 — OCCT 8.0 compat shim (hand-written, 2026-10-29).
++//
++// OCCT 8.0 removed the Adaptor3d_HSurface class. Bundled SMESH 7.7.1's
++// only reference to it is the include in
++// StdMeshers_ViscousLayers.cpp; the single use sits inside an
++// `#if OCC_VERSION_HEX < 0x070600` branch (the live branch uses
++// Adaptor3d_Surface) and is never compiled against OCCT >= 7.6.
++// This shim satisfies the include with the surviving adaptor header.
++
++#ifndef Adaptor3d_HSurface_HeaderFile
++#define Adaptor3d_HSurface_HeaderFile
++
++#include <Adaptor3d_Surface.hxx>
++
++#endif
+diff --git a/salomesmesh/occt8-compat/include/Expr_Array1OfNamedUnknown.hxx b/salomesmesh/occt8-compat/include/Expr_Array1OfNamedUnknown.hxx
+new file mode 100644
+index 0000000..9bea4fc
+--- /dev/null
++++ b/salomesmesh/occt8-compat/include/Expr_Array1OfNamedUnknown.hxx
+@@ -0,0 +1,25 @@
++// Created on: 1991-01-14
++// Created by: Arnaud BOUZY
++// Copyright (c) 1991-1999 Matra Datavision
++// Copyright (c) 1999-2014 OPEN CASCADE SAS
++//
++// This file is part of Open CASCADE Technology software library.
++//
++// This library is free software; you can redistribute it and/or modify it under
++// the terms of the GNU Lesser General Public License version 2.1 as published
++// by the Free Software Foundation, with special exception defined in the file
++// OCCT_LGPL_EXCEPTION.txt. Consult the file LICENSE_LGPL_21.txt included in OCCT
++// distribution for complete text of the license and disclaimer of any warranty.
++//
++// Alternatively, this file may be used under the terms of Open CASCADE
++// commercial license or contractual agreement.
++
++#ifndef Expr_Array1OfNamedUnknown_HeaderFile
++#define Expr_Array1OfNamedUnknown_HeaderFile
++
++#include <NCollection_Array1.hxx>
++
++class Expr_NamedUnknown;
++typedef NCollection_Array1<Handle(Expr_NamedUnknown)> Expr_Array1OfNamedUnknown;
++
++#endif
+diff --git a/salomesmesh/occt8-compat/include/MeshVS_Array1OfSequenceOfInteger.hxx b/salomesmesh/occt8-compat/include/MeshVS_Array1OfSequenceOfInteger.hxx
+new file mode 100644
+index 0000000..6f551d8
+--- /dev/null
++++ b/salomesmesh/occt8-compat/include/MeshVS_Array1OfSequenceOfInteger.hxx
+@@ -0,0 +1,33 @@
++// Copyright (c) 2025 OPEN CASCADE SAS
++//
++// This file is part of Open CASCADE Technology software library.
++//
++// This library is free software; you can redistribute it and/or modify it under
++// the terms of the GNU Lesser General Public License version 2.1 as published
++// by the Free Software Foundation, with special exception defined in the file
++// OCCT_LGPL_EXCEPTION.txt. Consult the file LICENSE_LGPL_21.txt included in OCCT
++// distribution for complete text of the license and disclaimer of any warranty.
++//
++// Alternatively, this file may be used under the terms of Open CASCADE
++// commercial license or contractual agreement.
++
++//! @file MeshVS_Array1OfSequenceOfInteger.hxx
++//! @brief Deprecated typedef for backward compatibility.
++//! @deprecated This header is deprecated since OCCT 8.0.0.
++//!             Use NCollection_Array1<TColStd_SequenceOfInteger> directly instead.
++
++#ifndef _MeshVS_Array1OfSequenceOfInteger_hxx
++#define _MeshVS_Array1OfSequenceOfInteger_hxx
++
++#include <Standard_Macro.hxx>
++#include <TColStd_SequenceOfInteger.hxx>
++#include <NCollection_Array1.hxx>
++
++Standard_HEADER_DEPRECATED("MeshVS_Array1OfSequenceOfInteger.hxx is deprecated since OCCT 8.0.0. "
++                           "Use NCollection_Array1<TColStd_SequenceOfInteger> directly.")
++
++  Standard_DEPRECATED("MeshVS_Array1OfSequenceOfInteger is deprecated, use "
++                      "NCollection_Array1<TColStd_SequenceOfInteger> directly")
++typedef NCollection_Array1<TColStd_SequenceOfInteger> MeshVS_Array1OfSequenceOfInteger;
++
++#endif // _MeshVS_Array1OfSequenceOfInteger_hxx
+diff --git a/salomesmesh/occt8-compat/include/MeshVS_HArray1OfSequenceOfInteger.hxx b/salomesmesh/occt8-compat/include/MeshVS_HArray1OfSequenceOfInteger.hxx
+new file mode 100644
+index 0000000..56adc80
+--- /dev/null
++++ b/salomesmesh/occt8-compat/include/MeshVS_HArray1OfSequenceOfInteger.hxx
+@@ -0,0 +1,33 @@
++// Copyright (c) 2025 OPEN CASCADE SAS
++//
++// This file is part of Open CASCADE Technology software library.
++//
++// This library is free software; you can redistribute it and/or modify it under
++// the terms of the GNU Lesser General Public License version 2.1 as published
++// by the Free Software Foundation, with special exception defined in the file
++// OCCT_LGPL_EXCEPTION.txt. Consult the file LICENSE_LGPL_21.txt included in OCCT
++// distribution for complete text of the license and disclaimer of any warranty.
++//
++// Alternatively, this file may be used under the terms of Open CASCADE
++// commercial license or contractual agreement.
++
++//! @file MeshVS_HArray1OfSequenceOfInteger.hxx
++//! @brief Deprecated typedef for backward compatibility.
++//! @deprecated This header is deprecated since OCCT 8.0.0.
++//!             Use NCollection_HArray1<TColStd_SequenceOfInteger> directly instead.
++
++#ifndef _MeshVS_HArray1OfSequenceOfInteger_hxx
++#define _MeshVS_HArray1OfSequenceOfInteger_hxx
++
++#include <Standard_Macro.hxx>
++#include <MeshVS_Array1OfSequenceOfInteger.hxx>
++#include <NCollection_HArray1.hxx>
++
++Standard_HEADER_DEPRECATED("MeshVS_HArray1OfSequenceOfInteger.hxx is deprecated since OCCT 8.0.0. "
++                           "Use NCollection_HArray1<TColStd_SequenceOfInteger> directly.")
++
++  Standard_DEPRECATED("MeshVS_HArray1OfSequenceOfInteger is deprecated, use "
++                      "NCollection_HArray1<TColStd_SequenceOfInteger> directly")
++typedef NCollection_HArray1<TColStd_SequenceOfInteger> MeshVS_HArray1OfSequenceOfInteger;
++
++#endif // _MeshVS_HArray1OfSequenceOfInteger_hxx
+diff --git a/salomesmesh/occt8-compat/include/Poly_Array1OfTriangle.hxx b/salomesmesh/occt8-compat/include/Poly_Array1OfTriangle.hxx
+new file mode 100644
+index 0000000..171e3a5
+--- /dev/null
++++ b/salomesmesh/occt8-compat/include/Poly_Array1OfTriangle.hxx
+@@ -0,0 +1,33 @@
++// Copyright (c) 2025 OPEN CASCADE SAS
++//
++// This file is part of Open CASCADE Technology software library.
++//
++// This library is free software; you can redistribute it and/or modify it under
++// the terms of the GNU Lesser General Public License version 2.1 as published
++// by the Free Software Foundation, with special exception defined in the file
++// OCCT_LGPL_EXCEPTION.txt. Consult the file LICENSE_LGPL_21.txt included in OCCT
++// distribution for complete text of the license and disclaimer of any warranty.
++//
++// Alternatively, this file may be used under the terms of Open CASCADE
++// commercial license or contractual agreement.
++
++//! @file Poly_Array1OfTriangle.hxx
++//! @brief Deprecated typedef for backward compatibility.
++//! @deprecated This header is deprecated since OCCT 8.0.0.
++//!             Use NCollection_Array1<Poly_Triangle> directly instead.
++
++#ifndef _Poly_Array1OfTriangle_hxx
++#define _Poly_Array1OfTriangle_hxx
++
++#include <Standard_Macro.hxx>
++#include <Poly_Triangle.hxx>
++#include <NCollection_Array1.hxx>
++
++Standard_HEADER_DEPRECATED("Poly_Array1OfTriangle.hxx is deprecated since OCCT 8.0.0. Use "
++                           "NCollection_Array1<Poly_Triangle> directly.")
++
++  Standard_DEPRECATED(
++    "Poly_Array1OfTriangle is deprecated, use NCollection_Array1<Poly_Triangle> directly")
++typedef NCollection_Array1<Poly_Triangle> Poly_Array1OfTriangle;
++
++#endif // _Poly_Array1OfTriangle_hxx
+diff --git a/salomesmesh/occt8-compat/include/ShapeAnalysis_DataMapOfShapeListOfReal.hxx b/salomesmesh/occt8-compat/include/ShapeAnalysis_DataMapOfShapeListOfReal.hxx
+new file mode 100644
+index 0000000..a749012
+--- /dev/null
++++ b/salomesmesh/occt8-compat/include/ShapeAnalysis_DataMapOfShapeListOfReal.hxx
+@@ -0,0 +1,42 @@
++// Copyright (c) 2025 OPEN CASCADE SAS
++//
++// This file is part of Open CASCADE Technology software library.
++//
++// This library is free software; you can redistribute it and/or modify it under
++// the terms of the GNU Lesser General Public License version 2.1 as published
++// by the Free Software Foundation, with special exception defined in the file
++// OCCT_LGPL_EXCEPTION.txt. Consult the file LICENSE_LGPL_21.txt included in OCCT
++// distribution for complete text of the license and disclaimer of any warranty.
++//
++// Alternatively, this file may be used under the terms of Open CASCADE
++// commercial license or contractual agreement.
++
++//! @file ShapeAnalysis_DataMapOfShapeListOfReal.hxx
++//! @brief Deprecated typedef for backward compatibility.
++//! @deprecated This header is deprecated since OCCT 8.0.0.
++//!             Use NCollection types directly instead.
++
++#ifndef _ShapeAnalysis_DataMapOfShapeListOfReal_hxx
++#define _ShapeAnalysis_DataMapOfShapeListOfReal_hxx
++
++#include <Standard_Macro.hxx>
++#include <TopoDS_Shape.hxx>
++#include <TColStd_ListOfReal.hxx>
++#include <TopTools_ShapeMapHasher.hxx>
++#include <NCollection_DataMap.hxx>
++
++Standard_HEADER_DEPRECATED("ShapeAnalysis_DataMapOfShapeListOfReal.hxx is deprecated since OCCT "
++                           "8.0.0. Use NCollection types directly.")
++
++  Standard_DEPRECATED(
++    "ShapeAnalysis_DataMapOfShapeListOfReal is deprecated, use NCollection_DataMap<TopoDS_Shape, "
++    "TColStd_ListOfReal, TopTools_ShapeMapHasher> directly")
++typedef NCollection_DataMap<TopoDS_Shape, TColStd_ListOfReal, TopTools_ShapeMapHasher>
++  ShapeAnalysis_DataMapOfShapeListOfReal;
++Standard_DEPRECATED("ShapeAnalysis_DataMapIteratorOfDataMapOfShapeListOfReal is deprecated, use "
++                    "NCollection_DataMap<TopoDS_Shape, TColStd_ListOfReal, "
++                    "TopTools_ShapeMapHasher>::Iterator directly")
++typedef NCollection_DataMap<TopoDS_Shape, TColStd_ListOfReal, TopTools_ShapeMapHasher>::Iterator
++  ShapeAnalysis_DataMapIteratorOfDataMapOfShapeListOfReal;
++
++#endif // _ShapeAnalysis_DataMapOfShapeListOfReal_hxx
+diff --git a/salomesmesh/occt8-compat/include/TColStd_Array1OfInteger.hxx b/salomesmesh/occt8-compat/include/TColStd_Array1OfInteger.hxx
+new file mode 100644
+index 0000000..f01fa28
+--- /dev/null
++++ b/salomesmesh/occt8-compat/include/TColStd_Array1OfInteger.hxx
+@@ -0,0 +1,32 @@
++// Copyright (c) 2025 OPEN CASCADE SAS
++//
++// This file is part of Open CASCADE Technology software library.
++//
++// This library is free software; you can redistribute it and/or modify it under
++// the terms of the GNU Lesser General Public License version 2.1 as published
++// by the Free Software Foundation, with special exception defined in the file
++// OCCT_LGPL_EXCEPTION.txt. Consult the file LICENSE_LGPL_21.txt included in OCCT
++// distribution for complete text of the license and disclaimer of any warranty.
++//
++// Alternatively, this file may be used under the terms of Open CASCADE
++// commercial license or contractual agreement.
++
++//! @file TColStd_Array1OfInteger.hxx
++//! @brief Deprecated typedef for backward compatibility.
++//! @deprecated This header is deprecated since OCCT 8.0.0.
++//!             Use NCollection_Array1<int> directly instead.
++
++#ifndef _TColStd_Array1OfInteger_hxx
++#define _TColStd_Array1OfInteger_hxx
++
++#include <Standard_Macro.hxx>
++#include <Standard_Integer.hxx>
++#include <NCollection_Array1.hxx>
++
++Standard_HEADER_DEPRECATED("TColStd_Array1OfInteger.hxx is deprecated since OCCT 8.0.0. Use "
++                           "NCollection_Array1<int> directly.")
++
++  Standard_DEPRECATED("TColStd_Array1OfInteger is deprecated, use NCollection_Array1<int> directly")
++typedef NCollection_Array1<int> TColStd_Array1OfInteger;
++
++#endif // _TColStd_Array1OfInteger_hxx
+diff --git a/salomesmesh/occt8-compat/include/TColStd_Array1OfReal.hxx b/salomesmesh/occt8-compat/include/TColStd_Array1OfReal.hxx
+new file mode 100644
+index 0000000..dcd31ac
+--- /dev/null
++++ b/salomesmesh/occt8-compat/include/TColStd_Array1OfReal.hxx
+@@ -0,0 +1,31 @@
++// Copyright (c) 2025 OPEN CASCADE SAS
++//
++// This file is part of Open CASCADE Technology software library.
++//
++// This library is free software; you can redistribute it and/or modify it under
++// the terms of the GNU Lesser General Public License version 2.1 as published
++// by the Free Software Foundation, with special exception defined in the file
++// OCCT_LGPL_EXCEPTION.txt. Consult the file LICENSE_LGPL_21.txt included in OCCT
++// distribution for complete text of the license and disclaimer of any warranty.
++//
++// Alternatively, this file may be used under the terms of Open CASCADE
++// commercial license or contractual agreement.
++
++//! @file TColStd_Array1OfReal.hxx
++//! @brief Deprecated typedef for backward compatibility.
++//! @deprecated This header is deprecated since OCCT 8.0.0.
++//!             Use NCollection_Array1<double> directly instead.
++
++#ifndef _TColStd_Array1OfReal_hxx
++#define _TColStd_Array1OfReal_hxx
++
++#include <Standard_Macro.hxx>
++#include <NCollection_Array1.hxx>
++
++Standard_HEADER_DEPRECATED("TColStd_Array1OfReal.hxx is deprecated since OCCT 8.0.0. Use "
++                           "NCollection_Array1<double> directly.")
++
++  Standard_DEPRECATED("TColStd_Array1OfReal is deprecated, use NCollection_Array1<double> directly")
++typedef NCollection_Array1<double> TColStd_Array1OfReal;
++
++#endif // _TColStd_Array1OfReal_hxx
+diff --git a/salomesmesh/occt8-compat/include/TColStd_Array2OfInteger.hxx b/salomesmesh/occt8-compat/include/TColStd_Array2OfInteger.hxx
+new file mode 100644
+index 0000000..1d42dc9
+--- /dev/null
++++ b/salomesmesh/occt8-compat/include/TColStd_Array2OfInteger.hxx
+@@ -0,0 +1,32 @@
++// Copyright (c) 2025 OPEN CASCADE SAS
++//
++// This file is part of Open CASCADE Technology software library.
++//
++// This library is free software; you can redistribute it and/or modify it under
++// the terms of the GNU Lesser General Public License version 2.1 as published
++// by the Free Software Foundation, with special exception defined in the file
++// OCCT_LGPL_EXCEPTION.txt. Consult the file LICENSE_LGPL_21.txt included in OCCT
++// distribution for complete text of the license and disclaimer of any warranty.
++//
++// Alternatively, this file may be used under the terms of Open CASCADE
++// commercial license or contractual agreement.
++
++//! @file TColStd_Array2OfInteger.hxx
++//! @brief Deprecated typedef for backward compatibility.
++//! @deprecated This header is deprecated since OCCT 8.0.0.
++//!             Use NCollection_Array2<int> directly instead.
++
++#ifndef _TColStd_Array2OfInteger_hxx
++#define _TColStd_Array2OfInteger_hxx
++
++#include <Standard_Macro.hxx>
++#include <Standard_Integer.hxx>
++#include <NCollection_Array2.hxx>
++
++Standard_HEADER_DEPRECATED("TColStd_Array2OfInteger.hxx is deprecated since OCCT 8.0.0. Use "
++                           "NCollection_Array2<int> directly.")
++
++  Standard_DEPRECATED("TColStd_Array2OfInteger is deprecated, use NCollection_Array2<int> directly")
++typedef NCollection_Array2<int> TColStd_Array2OfInteger;
++
++#endif // _TColStd_Array2OfInteger_hxx
+diff --git a/salomesmesh/occt8-compat/include/TColStd_Array2OfReal.hxx b/salomesmesh/occt8-compat/include/TColStd_Array2OfReal.hxx
+new file mode 100644
+index 0000000..920efda
+--- /dev/null
++++ b/salomesmesh/occt8-compat/include/TColStd_Array2OfReal.hxx
+@@ -0,0 +1,31 @@
++// Copyright (c) 2025 OPEN CASCADE SAS
++//
++// This file is part of Open CASCADE Technology software library.
++//
++// This library is free software; you can redistribute it and/or modify it under
++// the terms of the GNU Lesser General Public License version 2.1 as published
++// by the Free Software Foundation, with special exception defined in the file
++// OCCT_LGPL_EXCEPTION.txt. Consult the file LICENSE_LGPL_21.txt included in OCCT
++// distribution for complete text of the license and disclaimer of any warranty.
++//
++// Alternatively, this file may be used under the terms of Open CASCADE
++// commercial license or contractual agreement.
++
++//! @file TColStd_Array2OfReal.hxx
++//! @brief Deprecated typedef for backward compatibility.
++//! @deprecated This header is deprecated since OCCT 8.0.0.
++//!             Use NCollection_Array2<double> directly instead.
++
++#ifndef _TColStd_Array2OfReal_hxx
++#define _TColStd_Array2OfReal_hxx
++
++#include <Standard_Macro.hxx>
++#include <NCollection_Array2.hxx>
++
++Standard_HEADER_DEPRECATED("TColStd_Array2OfReal.hxx is deprecated since OCCT 8.0.0. Use "
++                           "NCollection_Array2<double> directly.")
++
++  Standard_DEPRECATED("TColStd_Array2OfReal is deprecated, use NCollection_Array2<double> directly")
++typedef NCollection_Array2<double> TColStd_Array2OfReal;
++
++#endif // _TColStd_Array2OfReal_hxx
+diff --git a/salomesmesh/occt8-compat/include/TColStd_HArray1OfInteger.hxx b/salomesmesh/occt8-compat/include/TColStd_HArray1OfInteger.hxx
+new file mode 100644
+index 0000000..c0fe460
+--- /dev/null
++++ b/salomesmesh/occt8-compat/include/TColStd_HArray1OfInteger.hxx
+@@ -0,0 +1,34 @@
++// Copyright (c) 2025 OPEN CASCADE SAS
++//
++// This file is part of Open CASCADE Technology software library.
++//
++// This library is free software; you can redistribute it and/or modify it under
++// the terms of the GNU Lesser General Public License version 2.1 as published
++// by the Free Software Foundation, with special exception defined in the file
++// OCCT_LGPL_EXCEPTION.txt. Consult the file LICENSE_LGPL_21.txt included in OCCT
++// distribution for complete text of the license and disclaimer of any warranty.
++//
++// Alternatively, this file may be used under the terms of Open CASCADE
++// commercial license or contractual agreement.
++
++//! @file TColStd_HArray1OfInteger.hxx
++//! @brief Deprecated typedef for backward compatibility.
++//! @deprecated This header is deprecated since OCCT 8.0.0.
++//!             Use NCollection_HArray1<int> directly instead.
++
++#ifndef _TColStd_HArray1OfInteger_hxx
++#define _TColStd_HArray1OfInteger_hxx
++
++#include <Standard_Macro.hxx>
++#include <Standard_Integer.hxx>
++#include <TColStd_Array1OfInteger.hxx>
++#include <NCollection_HArray1.hxx>
++
++Standard_HEADER_DEPRECATED("TColStd_HArray1OfInteger.hxx is deprecated since OCCT 8.0.0. Use "
++                           "NCollection_HArray1<int> directly.")
++
++  Standard_DEPRECATED(
++    "TColStd_HArray1OfInteger is deprecated, use NCollection_HArray1<int> directly")
++typedef NCollection_HArray1<int> TColStd_HArray1OfInteger;
++
++#endif // _TColStd_HArray1OfInteger_hxx
+diff --git a/salomesmesh/occt8-compat/include/TColStd_HArray2OfInteger.hxx b/salomesmesh/occt8-compat/include/TColStd_HArray2OfInteger.hxx
+new file mode 100644
+index 0000000..d88d270
+--- /dev/null
++++ b/salomesmesh/occt8-compat/include/TColStd_HArray2OfInteger.hxx
+@@ -0,0 +1,34 @@
++// Copyright (c) 2025 OPEN CASCADE SAS
++//
++// This file is part of Open CASCADE Technology software library.
++//
++// This library is free software; you can redistribute it and/or modify it under
++// the terms of the GNU Lesser General Public License version 2.1 as published
++// by the Free Software Foundation, with special exception defined in the file
++// OCCT_LGPL_EXCEPTION.txt. Consult the file LICENSE_LGPL_21.txt included in OCCT
++// distribution for complete text of the license and disclaimer of any warranty.
++//
++// Alternatively, this file may be used under the terms of Open CASCADE
++// commercial license or contractual agreement.
++
++//! @file TColStd_HArray2OfInteger.hxx
++//! @brief Deprecated typedef for backward compatibility.
++//! @deprecated This header is deprecated since OCCT 8.0.0.
++//!             Use NCollection_HArray2<int> directly instead.
++
++#ifndef _TColStd_HArray2OfInteger_hxx
++#define _TColStd_HArray2OfInteger_hxx
++
++#include <Standard_Macro.hxx>
++#include <Standard_Integer.hxx>
++#include <TColStd_Array2OfInteger.hxx>
++#include <NCollection_HArray2.hxx>
++
++Standard_HEADER_DEPRECATED("TColStd_HArray2OfInteger.hxx is deprecated since OCCT 8.0.0. Use "
++                           "NCollection_HArray2<int> directly.")
++
++  Standard_DEPRECATED(
++    "TColStd_HArray2OfInteger is deprecated, use NCollection_HArray2<int> directly")
++typedef NCollection_HArray2<int> TColStd_HArray2OfInteger;
++
++#endif // _TColStd_HArray2OfInteger_hxx
+diff --git a/salomesmesh/occt8-compat/include/TColStd_HArray2OfReal.hxx b/salomesmesh/occt8-compat/include/TColStd_HArray2OfReal.hxx
+new file mode 100644
+index 0000000..4d0c286
+--- /dev/null
++++ b/salomesmesh/occt8-compat/include/TColStd_HArray2OfReal.hxx
+@@ -0,0 +1,33 @@
++// Copyright (c) 2025 OPEN CASCADE SAS
++//
++// This file is part of Open CASCADE Technology software library.
++//
++// This library is free software; you can redistribute it and/or modify it under
++// the terms of the GNU Lesser General Public License version 2.1 as published
++// by the Free Software Foundation, with special exception defined in the file
++// OCCT_LGPL_EXCEPTION.txt. Consult the file LICENSE_LGPL_21.txt included in OCCT
++// distribution for complete text of the license and disclaimer of any warranty.
++//
++// Alternatively, this file may be used under the terms of Open CASCADE
++// commercial license or contractual agreement.
++
++//! @file TColStd_HArray2OfReal.hxx
++//! @brief Deprecated typedef for backward compatibility.
++//! @deprecated This header is deprecated since OCCT 8.0.0.
++//!             Use NCollection_HArray2<double> directly instead.
++
++#ifndef _TColStd_HArray2OfReal_hxx
++#define _TColStd_HArray2OfReal_hxx
++
++#include <Standard_Macro.hxx>
++#include <TColStd_Array2OfReal.hxx>
++#include <NCollection_HArray2.hxx>
++
++Standard_HEADER_DEPRECATED("TColStd_HArray2OfReal.hxx is deprecated since OCCT 8.0.0. Use "
++                           "NCollection_HArray2<double> directly.")
++
++  Standard_DEPRECATED(
++    "TColStd_HArray2OfReal is deprecated, use NCollection_HArray2<double> directly")
++typedef NCollection_HArray2<double> TColStd_HArray2OfReal;
++
++#endif // _TColStd_HArray2OfReal_hxx
+diff --git a/salomesmesh/occt8-compat/include/TColStd_HSequenceOfReal.hxx b/salomesmesh/occt8-compat/include/TColStd_HSequenceOfReal.hxx
+new file mode 100644
+index 0000000..9da3602
+--- /dev/null
++++ b/salomesmesh/occt8-compat/include/TColStd_HSequenceOfReal.hxx
+@@ -0,0 +1,33 @@
++// Copyright (c) 2025 OPEN CASCADE SAS
++//
++// This file is part of Open CASCADE Technology software library.
++//
++// This library is free software; you can redistribute it and/or modify it under
++// the terms of the GNU Lesser General Public License version 2.1 as published
++// by the Free Software Foundation, with special exception defined in the file
++// OCCT_LGPL_EXCEPTION.txt. Consult the file LICENSE_LGPL_21.txt included in OCCT
++// distribution for complete text of the license and disclaimer of any warranty.
++//
++// Alternatively, this file may be used under the terms of Open CASCADE
++// commercial license or contractual agreement.
++
++//! @file TColStd_HSequenceOfReal.hxx
++//! @brief Deprecated typedef for backward compatibility.
++//! @deprecated This header is deprecated since OCCT 8.0.0.
++//!             Use NCollection_HSequence<double> directly instead.
++
++#ifndef _TColStd_HSequenceOfReal_hxx
++#define _TColStd_HSequenceOfReal_hxx
++
++#include <Standard_Macro.hxx>
++#include <TColStd_SequenceOfReal.hxx>
++#include <NCollection_HSequence.hxx>
++
++Standard_HEADER_DEPRECATED("TColStd_HSequenceOfReal.hxx is deprecated since OCCT 8.0.0. Use "
++                           "NCollection_HSequence<double> directly.")
++
++  Standard_DEPRECATED(
++    "TColStd_HSequenceOfReal is deprecated, use NCollection_HSequence<double> directly")
++typedef NCollection_HSequence<double> TColStd_HSequenceOfReal;
++
++#endif // _TColStd_HSequenceOfReal_hxx
+diff --git a/salomesmesh/occt8-compat/include/TColStd_ListOfInteger.hxx b/salomesmesh/occt8-compat/include/TColStd_ListOfInteger.hxx
+new file mode 100644
+index 0000000..4b5e3d7
+--- /dev/null
++++ b/salomesmesh/occt8-compat/include/TColStd_ListOfInteger.hxx
+@@ -0,0 +1,35 @@
++// Copyright (c) 2025 OPEN CASCADE SAS
++//
++// This file is part of Open CASCADE Technology software library.
++//
++// This library is free software; you can redistribute it and/or modify it under
++// the terms of the GNU Lesser General Public License version 2.1 as published
++// by the Free Software Foundation, with special exception defined in the file
++// OCCT_LGPL_EXCEPTION.txt. Consult the file LICENSE_LGPL_21.txt included in OCCT
++// distribution for complete text of the license and disclaimer of any warranty.
++//
++// Alternatively, this file may be used under the terms of Open CASCADE
++// commercial license or contractual agreement.
++
++//! @file TColStd_ListOfInteger.hxx
++//! @brief Deprecated typedef for backward compatibility.
++//! @deprecated This header is deprecated since OCCT 8.0.0.
++//!             Use NCollection types directly instead.
++
++#ifndef _TColStd_ListOfInteger_hxx
++#define _TColStd_ListOfInteger_hxx
++
++#include <Standard_Macro.hxx>
++#include <Standard_Integer.hxx>
++#include <NCollection_List.hxx>
++
++Standard_HEADER_DEPRECATED(
++  "TColStd_ListOfInteger.hxx is deprecated since OCCT 8.0.0. Use NCollection types directly.")
++
++  Standard_DEPRECATED("TColStd_ListOfInteger is deprecated, use NCollection_List<int> directly")
++typedef NCollection_List<int> TColStd_ListOfInteger;
++Standard_DEPRECATED(
++  "TColStd_ListIteratorOfListOfInteger is deprecated, use NCollection_List<int>::Iterator directly")
++typedef NCollection_List<int>::Iterator TColStd_ListIteratorOfListOfInteger;
++
++#endif // _TColStd_ListOfInteger_hxx
+diff --git a/salomesmesh/occt8-compat/include/TColStd_ListOfReal.hxx b/salomesmesh/occt8-compat/include/TColStd_ListOfReal.hxx
+new file mode 100644
+index 0000000..f72a34a
+--- /dev/null
++++ b/salomesmesh/occt8-compat/include/TColStd_ListOfReal.hxx
+@@ -0,0 +1,34 @@
++// Copyright (c) 2025 OPEN CASCADE SAS
++//
++// This file is part of Open CASCADE Technology software library.
++//
++// This library is free software; you can redistribute it and/or modify it under
++// the terms of the GNU Lesser General Public License version 2.1 as published
++// by the Free Software Foundation, with special exception defined in the file
++// OCCT_LGPL_EXCEPTION.txt. Consult the file LICENSE_LGPL_21.txt included in OCCT
++// distribution for complete text of the license and disclaimer of any warranty.
++//
++// Alternatively, this file may be used under the terms of Open CASCADE
++// commercial license or contractual agreement.
++
++//! @file TColStd_ListOfReal.hxx
++//! @brief Deprecated typedef for backward compatibility.
++//! @deprecated This header is deprecated since OCCT 8.0.0.
++//!             Use NCollection types directly instead.
++
++#ifndef _TColStd_ListOfReal_hxx
++#define _TColStd_ListOfReal_hxx
++
++#include <Standard_Macro.hxx>
++#include <NCollection_List.hxx>
++
++Standard_HEADER_DEPRECATED(
++  "TColStd_ListOfReal.hxx is deprecated since OCCT 8.0.0. Use NCollection types directly.")
++
++  Standard_DEPRECATED("TColStd_ListOfReal is deprecated, use NCollection_List<double> directly")
++typedef NCollection_List<double> TColStd_ListOfReal;
++Standard_DEPRECATED(
++  "TColStd_ListIteratorOfListOfReal is deprecated, use NCollection_List<double>::Iterator directly")
++typedef NCollection_List<double>::Iterator TColStd_ListIteratorOfListOfReal;
++
++#endif // _TColStd_ListOfReal_hxx
+diff --git a/salomesmesh/occt8-compat/include/TColStd_MapOfInteger.hxx b/salomesmesh/occt8-compat/include/TColStd_MapOfInteger.hxx
+new file mode 100644
+index 0000000..3ffba45
+--- /dev/null
++++ b/salomesmesh/occt8-compat/include/TColStd_MapOfInteger.hxx
+@@ -0,0 +1,35 @@
++// Copyright (c) 2025 OPEN CASCADE SAS
++//
++// This file is part of Open CASCADE Technology software library.
++//
++// This library is free software; you can redistribute it and/or modify it under
++// the terms of the GNU Lesser General Public License version 2.1 as published
++// by the Free Software Foundation, with special exception defined in the file
++// OCCT_LGPL_EXCEPTION.txt. Consult the file LICENSE_LGPL_21.txt included in OCCT
++// distribution for complete text of the license and disclaimer of any warranty.
++//
++// Alternatively, this file may be used under the terms of Open CASCADE
++// commercial license or contractual agreement.
++
++//! @file TColStd_MapOfInteger.hxx
++//! @brief Deprecated typedef for backward compatibility.
++//! @deprecated This header is deprecated since OCCT 8.0.0.
++//!             Use NCollection types directly instead.
++
++#ifndef _TColStd_MapOfInteger_hxx
++#define _TColStd_MapOfInteger_hxx
++
++#include <Standard_Macro.hxx>
++#include <Standard_Integer.hxx>
++#include <NCollection_Map.hxx>
++
++Standard_HEADER_DEPRECATED(
++  "TColStd_MapOfInteger.hxx is deprecated since OCCT 8.0.0. Use NCollection types directly.")
++
++  Standard_DEPRECATED("TColStd_MapOfInteger is deprecated, use NCollection_Map<int> directly")
++typedef NCollection_Map<int> TColStd_MapOfInteger;
++Standard_DEPRECATED(
++  "TColStd_MapIteratorOfMapOfInteger is deprecated, use NCollection_Map<int>::Iterator directly")
++typedef NCollection_Map<int>::Iterator TColStd_MapIteratorOfMapOfInteger;
++
++#endif // _TColStd_MapOfInteger_hxx
+diff --git a/salomesmesh/occt8-compat/include/TColStd_SequenceOfAsciiString.hxx b/salomesmesh/occt8-compat/include/TColStd_SequenceOfAsciiString.hxx
+new file mode 100644
+index 0000000..28329cb
+--- /dev/null
++++ b/salomesmesh/occt8-compat/include/TColStd_SequenceOfAsciiString.hxx
+@@ -0,0 +1,33 @@
++// Copyright (c) 2025 OPEN CASCADE SAS
++//
++// This file is part of Open CASCADE Technology software library.
++//
++// This library is free software; you can redistribute it and/or modify it under
++// the terms of the GNU Lesser General Public License version 2.1 as published
++// by the Free Software Foundation, with special exception defined in the file
++// OCCT_LGPL_EXCEPTION.txt. Consult the file LICENSE_LGPL_21.txt included in OCCT
++// distribution for complete text of the license and disclaimer of any warranty.
++//
++// Alternatively, this file may be used under the terms of Open CASCADE
++// commercial license or contractual agreement.
++
++//! @file TColStd_SequenceOfAsciiString.hxx
++//! @brief Deprecated typedef for backward compatibility.
++//! @deprecated This header is deprecated since OCCT 8.0.0.
++//!             Use NCollection_Sequence<TCollection_AsciiString> directly instead.
++
++#ifndef _TColStd_SequenceOfAsciiString_hxx
++#define _TColStd_SequenceOfAsciiString_hxx
++
++#include <Standard_Macro.hxx>
++#include <TCollection_AsciiString.hxx>
++#include <NCollection_Sequence.hxx>
++
++Standard_HEADER_DEPRECATED("TColStd_SequenceOfAsciiString.hxx is deprecated since OCCT 8.0.0. Use "
++                           "NCollection_Sequence<TCollection_AsciiString> directly.")
++
++  Standard_DEPRECATED("TColStd_SequenceOfAsciiString is deprecated, use "
++                      "NCollection_Sequence<TCollection_AsciiString> directly")
++typedef NCollection_Sequence<TCollection_AsciiString> TColStd_SequenceOfAsciiString;
++
++#endif // _TColStd_SequenceOfAsciiString_hxx
+diff --git a/salomesmesh/occt8-compat/include/TColStd_SequenceOfInteger.hxx b/salomesmesh/occt8-compat/include/TColStd_SequenceOfInteger.hxx
+new file mode 100644
+index 0000000..6f853ef
+--- /dev/null
++++ b/salomesmesh/occt8-compat/include/TColStd_SequenceOfInteger.hxx
+@@ -0,0 +1,33 @@
++// Copyright (c) 2025 OPEN CASCADE SAS
++//
++// This file is part of Open CASCADE Technology software library.
++//
++// This library is free software; you can redistribute it and/or modify it under
++// the terms of the GNU Lesser General Public License version 2.1 as published
++// by the Free Software Foundation, with special exception defined in the file
++// OCCT_LGPL_EXCEPTION.txt. Consult the file LICENSE_LGPL_21.txt included in OCCT
++// distribution for complete text of the license and disclaimer of any warranty.
++//
++// Alternatively, this file may be used under the terms of Open CASCADE
++// commercial license or contractual agreement.
++
++//! @file TColStd_SequenceOfInteger.hxx
++//! @brief Deprecated typedef for backward compatibility.
++//! @deprecated This header is deprecated since OCCT 8.0.0.
++//!             Use NCollection_Sequence<int> directly instead.
++
++#ifndef _TColStd_SequenceOfInteger_hxx
++#define _TColStd_SequenceOfInteger_hxx
++
++#include <Standard_Macro.hxx>
++#include <Standard_Integer.hxx>
++#include <NCollection_Sequence.hxx>
++
++Standard_HEADER_DEPRECATED("TColStd_SequenceOfInteger.hxx is deprecated since OCCT 8.0.0. Use "
++                           "NCollection_Sequence<int> directly.")
++
++  Standard_DEPRECATED(
++    "TColStd_SequenceOfInteger is deprecated, use NCollection_Sequence<int> directly")
++typedef NCollection_Sequence<int> TColStd_SequenceOfInteger;
++
++#endif // _TColStd_SequenceOfInteger_hxx
+diff --git a/salomesmesh/occt8-compat/include/TColStd_SequenceOfReal.hxx b/salomesmesh/occt8-compat/include/TColStd_SequenceOfReal.hxx
+new file mode 100644
+index 0000000..a1b523e
+--- /dev/null
++++ b/salomesmesh/occt8-compat/include/TColStd_SequenceOfReal.hxx
+@@ -0,0 +1,32 @@
++// Copyright (c) 2025 OPEN CASCADE SAS
++//
++// This file is part of Open CASCADE Technology software library.
++//
++// This library is free software; you can redistribute it and/or modify it under
++// the terms of the GNU Lesser General Public License version 2.1 as published
++// by the Free Software Foundation, with special exception defined in the file
++// OCCT_LGPL_EXCEPTION.txt. Consult the file LICENSE_LGPL_21.txt included in OCCT
++// distribution for complete text of the license and disclaimer of any warranty.
++//
++// Alternatively, this file may be used under the terms of Open CASCADE
++// commercial license or contractual agreement.
++
++//! @file TColStd_SequenceOfReal.hxx
++//! @brief Deprecated typedef for backward compatibility.
++//! @deprecated This header is deprecated since OCCT 8.0.0.
++//!             Use NCollection_Sequence<double> directly instead.
++
++#ifndef _TColStd_SequenceOfReal_hxx
++#define _TColStd_SequenceOfReal_hxx
++
++#include <Standard_Macro.hxx>
++#include <NCollection_Sequence.hxx>
++
++Standard_HEADER_DEPRECATED("TColStd_SequenceOfReal.hxx is deprecated since OCCT 8.0.0. Use "
++                           "NCollection_Sequence<double> directly.")
++
++  Standard_DEPRECATED(
++    "TColStd_SequenceOfReal is deprecated, use NCollection_Sequence<double> directly")
++typedef NCollection_Sequence<double> TColStd_SequenceOfReal;
++
++#endif // _TColStd_SequenceOfReal_hxx
+diff --git a/salomesmesh/occt8-compat/include/TColgp_Array1OfPnt.hxx b/salomesmesh/occt8-compat/include/TColgp_Array1OfPnt.hxx
+new file mode 100644
+index 0000000..6293736
+--- /dev/null
++++ b/salomesmesh/occt8-compat/include/TColgp_Array1OfPnt.hxx
+@@ -0,0 +1,32 @@
++// Copyright (c) 2025 OPEN CASCADE SAS
++//
++// This file is part of Open CASCADE Technology software library.
++//
++// This library is free software; you can redistribute it and/or modify it under
++// the terms of the GNU Lesser General Public License version 2.1 as published
++// by the Free Software Foundation, with special exception defined in the file
++// OCCT_LGPL_EXCEPTION.txt. Consult the file LICENSE_LGPL_21.txt included in OCCT
++// distribution for complete text of the license and disclaimer of any warranty.
++//
++// Alternatively, this file may be used under the terms of Open CASCADE
++// commercial license or contractual agreement.
++
++//! @file TColgp_Array1OfPnt.hxx
++//! @brief Deprecated typedef for backward compatibility.
++//! @deprecated This header is deprecated since OCCT 8.0.0.
++//!             Use NCollection_Array1<gp_Pnt> directly instead.
++
++#ifndef _TColgp_Array1OfPnt_hxx
++#define _TColgp_Array1OfPnt_hxx
++
++#include <Standard_Macro.hxx>
++#include <gp_Pnt.hxx>
++#include <NCollection_Array1.hxx>
++
++Standard_HEADER_DEPRECATED(
++  "TColgp_Array1OfPnt.hxx is deprecated since OCCT 8.0.0. Use NCollection_Array1<gp_Pnt> directly.")
++
++  Standard_DEPRECATED("TColgp_Array1OfPnt is deprecated, use NCollection_Array1<gp_Pnt> directly")
++typedef NCollection_Array1<gp_Pnt> TColgp_Array1OfPnt;
++
++#endif // _TColgp_Array1OfPnt_hxx
+diff --git a/salomesmesh/occt8-compat/include/TColgp_Array1OfVec.hxx b/salomesmesh/occt8-compat/include/TColgp_Array1OfVec.hxx
+new file mode 100644
+index 0000000..71bb860
+--- /dev/null
++++ b/salomesmesh/occt8-compat/include/TColgp_Array1OfVec.hxx
+@@ -0,0 +1,32 @@
++// Copyright (c) 2025 OPEN CASCADE SAS
++//
++// This file is part of Open CASCADE Technology software library.
++//
++// This library is free software; you can redistribute it and/or modify it under
++// the terms of the GNU Lesser General Public License version 2.1 as published
++// by the Free Software Foundation, with special exception defined in the file
++// OCCT_LGPL_EXCEPTION.txt. Consult the file LICENSE_LGPL_21.txt included in OCCT
++// distribution for complete text of the license and disclaimer of any warranty.
++//
++// Alternatively, this file may be used under the terms of Open CASCADE
++// commercial license or contractual agreement.
++
++//! @file TColgp_Array1OfVec.hxx
++//! @brief Deprecated typedef for backward compatibility.
++//! @deprecated This header is deprecated since OCCT 8.0.0.
++//!             Use NCollection_Array1<gp_Vec> directly instead.
++
++#ifndef _TColgp_Array1OfVec_hxx
++#define _TColgp_Array1OfVec_hxx
++
++#include <Standard_Macro.hxx>
++#include <gp_Vec.hxx>
++#include <NCollection_Array1.hxx>
++
++Standard_HEADER_DEPRECATED(
++  "TColgp_Array1OfVec.hxx is deprecated since OCCT 8.0.0. Use NCollection_Array1<gp_Vec> directly.")
++
++  Standard_DEPRECATED("TColgp_Array1OfVec is deprecated, use NCollection_Array1<gp_Vec> directly")
++typedef NCollection_Array1<gp_Vec> TColgp_Array1OfVec;
++
++#endif // _TColgp_Array1OfVec_hxx
+diff --git a/salomesmesh/occt8-compat/include/TColgp_Array1OfXYZ.hxx b/salomesmesh/occt8-compat/include/TColgp_Array1OfXYZ.hxx
+new file mode 100644
+index 0000000..b7412b9
+--- /dev/null
++++ b/salomesmesh/occt8-compat/include/TColgp_Array1OfXYZ.hxx
+@@ -0,0 +1,32 @@
++// Copyright (c) 2025 OPEN CASCADE SAS
++//
++// This file is part of Open CASCADE Technology software library.
++//
++// This library is free software; you can redistribute it and/or modify it under
++// the terms of the GNU Lesser General Public License version 2.1 as published
++// by the Free Software Foundation, with special exception defined in the file
++// OCCT_LGPL_EXCEPTION.txt. Consult the file LICENSE_LGPL_21.txt included in OCCT
++// distribution for complete text of the license and disclaimer of any warranty.
++//
++// Alternatively, this file may be used under the terms of Open CASCADE
++// commercial license or contractual agreement.
++
++//! @file TColgp_Array1OfXYZ.hxx
++//! @brief Deprecated typedef for backward compatibility.
++//! @deprecated This header is deprecated since OCCT 8.0.0.
++//!             Use NCollection_Array1<gp_XYZ> directly instead.
++
++#ifndef _TColgp_Array1OfXYZ_hxx
++#define _TColgp_Array1OfXYZ_hxx
++
++#include <Standard_Macro.hxx>
++#include <gp_XYZ.hxx>
++#include <NCollection_Array1.hxx>
++
++Standard_HEADER_DEPRECATED(
++  "TColgp_Array1OfXYZ.hxx is deprecated since OCCT 8.0.0. Use NCollection_Array1<gp_XYZ> directly.")
++
++  Standard_DEPRECATED("TColgp_Array1OfXYZ is deprecated, use NCollection_Array1<gp_XYZ> directly")
++typedef NCollection_Array1<gp_XYZ> TColgp_Array1OfXYZ;
++
++#endif // _TColgp_Array1OfXYZ_hxx
+diff --git a/salomesmesh/occt8-compat/include/TColgp_HArray1OfPnt.hxx b/salomesmesh/occt8-compat/include/TColgp_HArray1OfPnt.hxx
+new file mode 100644
+index 0000000..2359d97
+--- /dev/null
++++ b/salomesmesh/occt8-compat/include/TColgp_HArray1OfPnt.hxx
+@@ -0,0 +1,33 @@
++// Copyright (c) 2025 OPEN CASCADE SAS
++//
++// This file is part of Open CASCADE Technology software library.
++//
++// This library is free software; you can redistribute it and/or modify it under
++// the terms of the GNU Lesser General Public License version 2.1 as published
++// by the Free Software Foundation, with special exception defined in the file
++// OCCT_LGPL_EXCEPTION.txt. Consult the file LICENSE_LGPL_21.txt included in OCCT
++// distribution for complete text of the license and disclaimer of any warranty.
++//
++// Alternatively, this file may be used under the terms of Open CASCADE
++// commercial license or contractual agreement.
++
++//! @file TColgp_HArray1OfPnt.hxx
++//! @brief Deprecated typedef for backward compatibility.
++//! @deprecated This header is deprecated since OCCT 8.0.0.
++//!             Use NCollection_HArray1<gp_Pnt> directly instead.
++
++#ifndef _TColgp_HArray1OfPnt_hxx
++#define _TColgp_HArray1OfPnt_hxx
++
++#include <Standard_Macro.hxx>
++#include <gp_Pnt.hxx>
++#include <TColgp_Array1OfPnt.hxx>
++#include <NCollection_HArray1.hxx>
++
++Standard_HEADER_DEPRECATED("TColgp_HArray1OfPnt.hxx is deprecated since OCCT 8.0.0. Use "
++                           "NCollection_HArray1<gp_Pnt> directly.")
++
++  Standard_DEPRECATED("TColgp_HArray1OfPnt is deprecated, use NCollection_HArray1<gp_Pnt> directly")
++typedef NCollection_HArray1<gp_Pnt> TColgp_HArray1OfPnt;
++
++#endif // _TColgp_HArray1OfPnt_hxx
+diff --git a/salomesmesh/occt8-compat/include/TColgp_HArray1OfVec.hxx b/salomesmesh/occt8-compat/include/TColgp_HArray1OfVec.hxx
+new file mode 100644
+index 0000000..291c5b5
+--- /dev/null
++++ b/salomesmesh/occt8-compat/include/TColgp_HArray1OfVec.hxx
+@@ -0,0 +1,32 @@
++// Copyright (c) 2025 OPEN CASCADE SAS
++//
++// This file is part of Open CASCADE Technology software library.
++//
++// This library is free software; you can redistribute it and/or modify it under
++// the terms of the GNU Lesser General Public License version 2.1 as published
++// by the Free Software Foundation, with special exception defined in the file
++// OCCT_LGPL_EXCEPTION.txt. Consult the file LICENSE_LGPL_21.txt included in OCCT
++// distribution for complete text of the license and disclaimer of any warranty.
++//
++// Alternatively, this file may be used under the terms of Open CASCADE
++// commercial license or contractual agreement.
++
++//! @file TColgp_HArray1OfVec.hxx
++//! @brief Deprecated typedef for backward compatibility.
++//! @deprecated This header is deprecated since OCCT 8.0.0.
++//!             Use NCollection_HArray1<gp_Vec> directly instead.
++
++#ifndef _TColgp_HArray1OfVec_hxx
++#define _TColgp_HArray1OfVec_hxx
++
++#include <Standard_Macro.hxx>
++#include <TColgp_Array1OfVec.hxx>
++#include <NCollection_HArray1.hxx>
++
++Standard_HEADER_DEPRECATED("TColgp_HArray1OfVec.hxx is deprecated since OCCT 8.0.0. Use "
++                           "NCollection_HArray1<gp_Vec> directly.")
++
++  Standard_DEPRECATED("TColgp_HArray1OfVec is deprecated, use NCollection_HArray1<gp_Vec> directly")
++typedef NCollection_HArray1<gp_Vec> TColgp_HArray1OfVec;
++
++#endif // _TColgp_HArray1OfVec_hxx
+diff --git a/salomesmesh/occt8-compat/include/TColgp_HSequenceOfPnt.hxx b/salomesmesh/occt8-compat/include/TColgp_HSequenceOfPnt.hxx
+new file mode 100644
+index 0000000..8498007
+--- /dev/null
++++ b/salomesmesh/occt8-compat/include/TColgp_HSequenceOfPnt.hxx
+@@ -0,0 +1,34 @@
++// Copyright (c) 2025 OPEN CASCADE SAS
++//
++// This file is part of Open CASCADE Technology software library.
++//
++// This library is free software; you can redistribute it and/or modify it under
++// the terms of the GNU Lesser General Public License version 2.1 as published
++// by the Free Software Foundation, with special exception defined in the file
++// OCCT_LGPL_EXCEPTION.txt. Consult the file LICENSE_LGPL_21.txt included in OCCT
++// distribution for complete text of the license and disclaimer of any warranty.
++//
++// Alternatively, this file may be used under the terms of Open CASCADE
++// commercial license or contractual agreement.
++
++//! @file TColgp_HSequenceOfPnt.hxx
++//! @brief Deprecated typedef for backward compatibility.
++//! @deprecated This header is deprecated since OCCT 8.0.0.
++//!             Use NCollection_HSequence<gp_Pnt> directly instead.
++
++#ifndef _TColgp_HSequenceOfPnt_hxx
++#define _TColgp_HSequenceOfPnt_hxx
++
++#include <Standard_Macro.hxx>
++#include <gp_Pnt.hxx>
++#include <TColgp_SequenceOfPnt.hxx>
++#include <NCollection_HSequence.hxx>
++
++Standard_HEADER_DEPRECATED("TColgp_HSequenceOfPnt.hxx is deprecated since OCCT 8.0.0. Use "
++                           "NCollection_HSequence<gp_Pnt> directly.")
++
++  Standard_DEPRECATED(
++    "TColgp_HSequenceOfPnt is deprecated, use NCollection_HSequence<gp_Pnt> directly")
++typedef NCollection_HSequence<gp_Pnt> TColgp_HSequenceOfPnt;
++
++#endif // _TColgp_HSequenceOfPnt_hxx
+diff --git a/salomesmesh/occt8-compat/include/TColgp_SequenceOfPnt.hxx b/salomesmesh/occt8-compat/include/TColgp_SequenceOfPnt.hxx
+new file mode 100644
+index 0000000..d03bdf6
+--- /dev/null
++++ b/salomesmesh/occt8-compat/include/TColgp_SequenceOfPnt.hxx
+@@ -0,0 +1,33 @@
++// Copyright (c) 2025 OPEN CASCADE SAS
++//
++// This file is part of Open CASCADE Technology software library.
++//
++// This library is free software; you can redistribute it and/or modify it under
++// the terms of the GNU Lesser General Public License version 2.1 as published
++// by the Free Software Foundation, with special exception defined in the file
++// OCCT_LGPL_EXCEPTION.txt. Consult the file LICENSE_LGPL_21.txt included in OCCT
++// distribution for complete text of the license and disclaimer of any warranty.
++//
++// Alternatively, this file may be used under the terms of Open CASCADE
++// commercial license or contractual agreement.
++
++//! @file TColgp_SequenceOfPnt.hxx
++//! @brief Deprecated typedef for backward compatibility.
++//! @deprecated This header is deprecated since OCCT 8.0.0.
++//!             Use NCollection_Sequence<gp_Pnt> directly instead.
++
++#ifndef _TColgp_SequenceOfPnt_hxx
++#define _TColgp_SequenceOfPnt_hxx
++
++#include <Standard_Macro.hxx>
++#include <gp_Pnt.hxx>
++#include <NCollection_Sequence.hxx>
++
++Standard_HEADER_DEPRECATED("TColgp_SequenceOfPnt.hxx is deprecated since OCCT 8.0.0. Use "
++                           "NCollection_Sequence<gp_Pnt> directly.")
++
++  Standard_DEPRECATED(
++    "TColgp_SequenceOfPnt is deprecated, use NCollection_Sequence<gp_Pnt> directly")
++typedef NCollection_Sequence<gp_Pnt> TColgp_SequenceOfPnt;
++
++#endif // _TColgp_SequenceOfPnt_hxx
+diff --git a/salomesmesh/occt8-compat/include/TColgp_SequenceOfPnt2d.hxx b/salomesmesh/occt8-compat/include/TColgp_SequenceOfPnt2d.hxx
+new file mode 100644
+index 0000000..5691a75
+--- /dev/null
++++ b/salomesmesh/occt8-compat/include/TColgp_SequenceOfPnt2d.hxx
+@@ -0,0 +1,33 @@
++// Copyright (c) 2025 OPEN CASCADE SAS
++//
++// This file is part of Open CASCADE Technology software library.
++//
++// This library is free software; you can redistribute it and/or modify it under
++// the terms of the GNU Lesser General Public License version 2.1 as published
++// by the Free Software Foundation, with special exception defined in the file
++// OCCT_LGPL_EXCEPTION.txt. Consult the file LICENSE_LGPL_21.txt included in OCCT
++// distribution for complete text of the license and disclaimer of any warranty.
++//
++// Alternatively, this file may be used under the terms of Open CASCADE
++// commercial license or contractual agreement.
++
++//! @file TColgp_SequenceOfPnt2d.hxx
++//! @brief Deprecated typedef for backward compatibility.
++//! @deprecated This header is deprecated since OCCT 8.0.0.
++//!             Use NCollection_Sequence<gp_Pnt2d> directly instead.
++
++#ifndef _TColgp_SequenceOfPnt2d_hxx
++#define _TColgp_SequenceOfPnt2d_hxx
++
++#include <Standard_Macro.hxx>
++#include <gp_Pnt2d.hxx>
++#include <NCollection_Sequence.hxx>
++
++Standard_HEADER_DEPRECATED("TColgp_SequenceOfPnt2d.hxx is deprecated since OCCT 8.0.0. Use "
++                           "NCollection_Sequence<gp_Pnt2d> directly.")
++
++  Standard_DEPRECATED(
++    "TColgp_SequenceOfPnt2d is deprecated, use NCollection_Sequence<gp_Pnt2d> directly")
++typedef NCollection_Sequence<gp_Pnt2d> TColgp_SequenceOfPnt2d;
++
++#endif // _TColgp_SequenceOfPnt2d_hxx
+diff --git a/salomesmesh/occt8-compat/include/TColgp_SequenceOfXY.hxx b/salomesmesh/occt8-compat/include/TColgp_SequenceOfXY.hxx
+new file mode 100644
+index 0000000..8023a9f
+--- /dev/null
++++ b/salomesmesh/occt8-compat/include/TColgp_SequenceOfXY.hxx
+@@ -0,0 +1,32 @@
++// Copyright (c) 2025 OPEN CASCADE SAS
++//
++// This file is part of Open CASCADE Technology software library.
++//
++// This library is free software; you can redistribute it and/or modify it under
++// the terms of the GNU Lesser General Public License version 2.1 as published
++// by the Free Software Foundation, with special exception defined in the file
++// OCCT_LGPL_EXCEPTION.txt. Consult the file LICENSE_LGPL_21.txt included in OCCT
++// distribution for complete text of the license and disclaimer of any warranty.
++//
++// Alternatively, this file may be used under the terms of Open CASCADE
++// commercial license or contractual agreement.
++
++//! @file TColgp_SequenceOfXY.hxx
++//! @brief Deprecated typedef for backward compatibility.
++//! @deprecated This header is deprecated since OCCT 8.0.0.
++//!             Use NCollection_Sequence<gp_XY> directly instead.
++
++#ifndef _TColgp_SequenceOfXY_hxx
++#define _TColgp_SequenceOfXY_hxx
++
++#include <Standard_Macro.hxx>
++#include <gp_XY.hxx>
++#include <NCollection_Sequence.hxx>
++
++Standard_HEADER_DEPRECATED("TColgp_SequenceOfXY.hxx is deprecated since OCCT 8.0.0. Use "
++                           "NCollection_Sequence<gp_XY> directly.")
++
++  Standard_DEPRECATED("TColgp_SequenceOfXY is deprecated, use NCollection_Sequence<gp_XY> directly")
++typedef NCollection_Sequence<gp_XY> TColgp_SequenceOfXY;
++
++#endif // _TColgp_SequenceOfXY_hxx
+diff --git a/salomesmesh/occt8-compat/include/TopTools_Array1OfShape.hxx b/salomesmesh/occt8-compat/include/TopTools_Array1OfShape.hxx
+new file mode 100644
+index 0000000..0b4e965
+--- /dev/null
++++ b/salomesmesh/occt8-compat/include/TopTools_Array1OfShape.hxx
+@@ -0,0 +1,33 @@
++// Copyright (c) 2025 OPEN CASCADE SAS
++//
++// This file is part of Open CASCADE Technology software library.
++//
++// This library is free software; you can redistribute it and/or modify it under
++// the terms of the GNU Lesser General Public License version 2.1 as published
++// by the Free Software Foundation, with special exception defined in the file
++// OCCT_LGPL_EXCEPTION.txt. Consult the file LICENSE_LGPL_21.txt included in OCCT
++// distribution for complete text of the license and disclaimer of any warranty.
++//
++// Alternatively, this file may be used under the terms of Open CASCADE
++// commercial license or contractual agreement.
++
++//! @file TopTools_Array1OfShape.hxx
++//! @brief Deprecated typedef for backward compatibility.
++//! @deprecated This header is deprecated since OCCT 8.0.0.
++//!             Use NCollection_Array1<TopoDS_Shape> directly instead.
++
++#ifndef _TopTools_Array1OfShape_hxx
++#define _TopTools_Array1OfShape_hxx
++
++#include <Standard_Macro.hxx>
++#include <TopoDS_Shape.hxx>
++#include <NCollection_Array1.hxx>
++
++Standard_HEADER_DEPRECATED("TopTools_Array1OfShape.hxx is deprecated since OCCT 8.0.0. Use "
++                           "NCollection_Array1<TopoDS_Shape> directly.")
++
++  Standard_DEPRECATED(
++    "TopTools_Array1OfShape is deprecated, use NCollection_Array1<TopoDS_Shape> directly")
++typedef NCollection_Array1<TopoDS_Shape> TopTools_Array1OfShape;
++
++#endif // _TopTools_Array1OfShape_hxx
+diff --git a/salomesmesh/occt8-compat/include/TopTools_DataMapOfShapeInteger.hxx b/salomesmesh/occt8-compat/include/TopTools_DataMapOfShapeInteger.hxx
+new file mode 100644
+index 0000000..ad0d487
+--- /dev/null
++++ b/salomesmesh/occt8-compat/include/TopTools_DataMapOfShapeInteger.hxx
+@@ -0,0 +1,41 @@
++// Copyright (c) 2025 OPEN CASCADE SAS
++//
++// This file is part of Open CASCADE Technology software library.
++//
++// This library is free software; you can redistribute it and/or modify it under
++// the terms of the GNU Lesser General Public License version 2.1 as published
++// by the Free Software Foundation, with special exception defined in the file
++// OCCT_LGPL_EXCEPTION.txt. Consult the file LICENSE_LGPL_21.txt included in OCCT
++// distribution for complete text of the license and disclaimer of any warranty.
++//
++// Alternatively, this file may be used under the terms of Open CASCADE
++// commercial license or contractual agreement.
++
++//! @file TopTools_DataMapOfShapeInteger.hxx
++//! @brief Deprecated typedef for backward compatibility.
++//! @deprecated This header is deprecated since OCCT 8.0.0.
++//!             Use NCollection types directly instead.
++
++#ifndef _TopTools_DataMapOfShapeInteger_hxx
++#define _TopTools_DataMapOfShapeInteger_hxx
++
++#include <Standard_Macro.hxx>
++#include <TopoDS_Shape.hxx>
++#include <Standard_Integer.hxx>
++#include <TopTools_ShapeMapHasher.hxx>
++#include <NCollection_DataMap.hxx>
++
++Standard_HEADER_DEPRECATED("TopTools_DataMapOfShapeInteger.hxx is deprecated since OCCT 8.0.0. Use "
++                           "NCollection types directly.")
++
++  Standard_DEPRECATED("TopTools_DataMapOfShapeInteger is deprecated, use "
++                      "NCollection_DataMap<TopoDS_Shape, int, TopTools_ShapeMapHasher> directly")
++typedef NCollection_DataMap<TopoDS_Shape, int, TopTools_ShapeMapHasher>
++  TopTools_DataMapOfShapeInteger;
++Standard_DEPRECATED(
++  "TopTools_DataMapIteratorOfDataMapOfShapeInteger is deprecated, use "
++  "NCollection_DataMap<TopoDS_Shape, int, TopTools_ShapeMapHasher>::Iterator directly")
++typedef NCollection_DataMap<TopoDS_Shape, int, TopTools_ShapeMapHasher>::Iterator
++  TopTools_DataMapIteratorOfDataMapOfShapeInteger;
++
++#endif // _TopTools_DataMapOfShapeInteger_hxx
+diff --git a/salomesmesh/occt8-compat/include/TopTools_DataMapOfShapeListOfShape.hxx b/salomesmesh/occt8-compat/include/TopTools_DataMapOfShapeListOfShape.hxx
+new file mode 100644
+index 0000000..c6c7e6a
+--- /dev/null
++++ b/salomesmesh/occt8-compat/include/TopTools_DataMapOfShapeListOfShape.hxx
+@@ -0,0 +1,42 @@
++// Copyright (c) 2025 OPEN CASCADE SAS
++//
++// This file is part of Open CASCADE Technology software library.
++//
++// This library is free software; you can redistribute it and/or modify it under
++// the terms of the GNU Lesser General Public License version 2.1 as published
++// by the Free Software Foundation, with special exception defined in the file
++// OCCT_LGPL_EXCEPTION.txt. Consult the file LICENSE_LGPL_21.txt included in OCCT
++// distribution for complete text of the license and disclaimer of any warranty.
++//
++// Alternatively, this file may be used under the terms of Open CASCADE
++// commercial license or contractual agreement.
++
++//! @file TopTools_DataMapOfShapeListOfShape.hxx
++//! @brief Deprecated typedef for backward compatibility.
++//! @deprecated This header is deprecated since OCCT 8.0.0.
++//!             Use NCollection types directly instead.
++
++#ifndef _TopTools_DataMapOfShapeListOfShape_hxx
++#define _TopTools_DataMapOfShapeListOfShape_hxx
++
++#include <Standard_Macro.hxx>
++#include <TopoDS_Shape.hxx>
++#include <TopTools_ListOfShape.hxx>
++#include <TopTools_ShapeMapHasher.hxx>
++#include <NCollection_DataMap.hxx>
++
++Standard_HEADER_DEPRECATED("TopTools_DataMapOfShapeListOfShape.hxx is deprecated since OCCT 8.0.0. "
++                           "Use NCollection types directly.")
++
++  Standard_DEPRECATED(
++    "TopTools_DataMapOfShapeListOfShape is deprecated, use NCollection_DataMap<TopoDS_Shape, "
++    "TopTools_ListOfShape, TopTools_ShapeMapHasher> directly")
++typedef NCollection_DataMap<TopoDS_Shape, TopTools_ListOfShape, TopTools_ShapeMapHasher>
++  TopTools_DataMapOfShapeListOfShape;
++Standard_DEPRECATED("TopTools_DataMapIteratorOfDataMapOfShapeListOfShape is deprecated, use "
++                    "NCollection_DataMap<TopoDS_Shape, TopTools_ListOfShape, "
++                    "TopTools_ShapeMapHasher>::Iterator directly")
++typedef NCollection_DataMap<TopoDS_Shape, TopTools_ListOfShape, TopTools_ShapeMapHasher>::Iterator
++  TopTools_DataMapIteratorOfDataMapOfShapeListOfShape;
++
++#endif // _TopTools_DataMapOfShapeListOfShape_hxx
+diff --git a/salomesmesh/occt8-compat/include/TopTools_DataMapOfShapeReal.hxx b/salomesmesh/occt8-compat/include/TopTools_DataMapOfShapeReal.hxx
+new file mode 100644
+index 0000000..32ada76
+--- /dev/null
++++ b/salomesmesh/occt8-compat/include/TopTools_DataMapOfShapeReal.hxx
+@@ -0,0 +1,40 @@
++// Copyright (c) 2025 OPEN CASCADE SAS
++//
++// This file is part of Open CASCADE Technology software library.
++//
++// This library is free software; you can redistribute it and/or modify it under
++// the terms of the GNU Lesser General Public License version 2.1 as published
++// by the Free Software Foundation, with special exception defined in the file
++// OCCT_LGPL_EXCEPTION.txt. Consult the file LICENSE_LGPL_21.txt included in OCCT
++// distribution for complete text of the license and disclaimer of any warranty.
++//
++// Alternatively, this file may be used under the terms of Open CASCADE
++// commercial license or contractual agreement.
++
++//! @file TopTools_DataMapOfShapeReal.hxx
++//! @brief Deprecated typedef for backward compatibility.
++//! @deprecated This header is deprecated since OCCT 8.0.0.
++//!             Use NCollection types directly instead.
++
++#ifndef _TopTools_DataMapOfShapeReal_hxx
++#define _TopTools_DataMapOfShapeReal_hxx
++
++#include <Standard_Macro.hxx>
++#include <TopoDS_Shape.hxx>
++#include <TopTools_ShapeMapHasher.hxx>
++#include <NCollection_DataMap.hxx>
++
++Standard_HEADER_DEPRECATED(
++  "TopTools_DataMapOfShapeReal.hxx is deprecated since OCCT 8.0.0. Use NCollection types directly.")
++
++  Standard_DEPRECATED("TopTools_DataMapOfShapeReal is deprecated, use "
++                      "NCollection_DataMap<TopoDS_Shape, double, TopTools_ShapeMapHasher> directly")
++typedef NCollection_DataMap<TopoDS_Shape, double, TopTools_ShapeMapHasher>
++  TopTools_DataMapOfShapeReal;
++Standard_DEPRECATED(
++  "TopTools_DataMapIteratorOfDataMapOfShapeReal is deprecated, use "
++  "NCollection_DataMap<TopoDS_Shape, double, TopTools_ShapeMapHasher>::Iterator directly")
++typedef NCollection_DataMap<TopoDS_Shape, double, TopTools_ShapeMapHasher>::Iterator
++  TopTools_DataMapIteratorOfDataMapOfShapeReal;
++
++#endif // _TopTools_DataMapOfShapeReal_hxx
+diff --git a/salomesmesh/occt8-compat/include/TopTools_DataMapOfShapeShape.hxx b/salomesmesh/occt8-compat/include/TopTools_DataMapOfShapeShape.hxx
+new file mode 100644
+index 0000000..085ed0e
+--- /dev/null
++++ b/salomesmesh/occt8-compat/include/TopTools_DataMapOfShapeShape.hxx
+@@ -0,0 +1,41 @@
++// Copyright (c) 2025 OPEN CASCADE SAS
++//
++// This file is part of Open CASCADE Technology software library.
++//
++// This library is free software; you can redistribute it and/or modify it under
++// the terms of the GNU Lesser General Public License version 2.1 as published
++// by the Free Software Foundation, with special exception defined in the file
++// OCCT_LGPL_EXCEPTION.txt. Consult the file LICENSE_LGPL_21.txt included in OCCT
++// distribution for complete text of the license and disclaimer of any warranty.
++//
++// Alternatively, this file may be used under the terms of Open CASCADE
++// commercial license or contractual agreement.
++
++//! @file TopTools_DataMapOfShapeShape.hxx
++//! @brief Deprecated typedef for backward compatibility.
++//! @deprecated This header is deprecated since OCCT 8.0.0.
++//!             Use NCollection types directly instead.
++
++#ifndef _TopTools_DataMapOfShapeShape_hxx
++#define _TopTools_DataMapOfShapeShape_hxx
++
++#include <Standard_Macro.hxx>
++#include <TopoDS_Shape.hxx>
++#include <TopTools_ShapeMapHasher.hxx>
++#include <NCollection_DataMap.hxx>
++
++Standard_HEADER_DEPRECATED("TopTools_DataMapOfShapeShape.hxx is deprecated since OCCT 8.0.0. Use "
++                           "NCollection types directly.")
++
++  Standard_DEPRECATED(
++    "TopTools_DataMapOfShapeShape is deprecated, use NCollection_DataMap<TopoDS_Shape, "
++    "TopoDS_Shape, TopTools_ShapeMapHasher> directly")
++typedef NCollection_DataMap<TopoDS_Shape, TopoDS_Shape, TopTools_ShapeMapHasher>
++  TopTools_DataMapOfShapeShape;
++Standard_DEPRECATED(
++  "TopTools_DataMapIteratorOfDataMapOfShapeShape is deprecated, use "
++  "NCollection_DataMap<TopoDS_Shape, TopoDS_Shape, TopTools_ShapeMapHasher>::Iterator directly")
++typedef NCollection_DataMap<TopoDS_Shape, TopoDS_Shape, TopTools_ShapeMapHasher>::Iterator
++  TopTools_DataMapIteratorOfDataMapOfShapeShape;
++
++#endif // _TopTools_DataMapOfShapeShape_hxx
+diff --git a/salomesmesh/occt8-compat/include/TopTools_IndexedDataMapOfShapeListOfShape.hxx b/salomesmesh/occt8-compat/include/TopTools_IndexedDataMapOfShapeListOfShape.hxx
+new file mode 100644
+index 0000000..9dc0fad
+--- /dev/null
++++ b/salomesmesh/occt8-compat/include/TopTools_IndexedDataMapOfShapeListOfShape.hxx
+@@ -0,0 +1,39 @@
++// Copyright (c) 2025 OPEN CASCADE SAS
++//
++// This file is part of Open CASCADE Technology software library.
++//
++// This library is free software; you can redistribute it and/or modify it under
++// the terms of the GNU Lesser General Public License version 2.1 as published
++// by the Free Software Foundation, with special exception defined in the file
++// OCCT_LGPL_EXCEPTION.txt. Consult the file LICENSE_LGPL_21.txt included in OCCT
++// distribution for complete text of the license and disclaimer of any warranty.
++//
++// Alternatively, this file may be used under the terms of Open CASCADE
++// commercial license or contractual agreement.
++
++//! @file TopTools_IndexedDataMapOfShapeListOfShape.hxx
++//! @brief Deprecated typedef for backward compatibility.
++//! @deprecated This header is deprecated since OCCT 8.0.0.
++//!             Use NCollection_IndexedDataMap<TopoDS_Shape, TopTools_ListOfShape,
++//!             TopTools_ShapeMapHasher> directly instead.
++
++#ifndef _TopTools_IndexedDataMapOfShapeListOfShape_hxx
++#define _TopTools_IndexedDataMapOfShapeListOfShape_hxx
++
++#include <Standard_Macro.hxx>
++#include <TopoDS_Shape.hxx>
++#include <TopTools_ListOfShape.hxx>
++#include <TopTools_ShapeMapHasher.hxx>
++#include <NCollection_IndexedDataMap.hxx>
++
++Standard_HEADER_DEPRECATED("TopTools_IndexedDataMapOfShapeListOfShape.hxx is deprecated since OCCT "
++                           "8.0.0. Use NCollection_IndexedDataMap<TopoDS_Shape, "
++                           "TopTools_ListOfShape, TopTools_ShapeMapHasher> directly.")
++
++  Standard_DEPRECATED("TopTools_IndexedDataMapOfShapeListOfShape is deprecated, use "
++                      "NCollection_IndexedDataMap<TopoDS_Shape, TopTools_ListOfShape, "
++                      "TopTools_ShapeMapHasher> directly")
++typedef NCollection_IndexedDataMap<TopoDS_Shape, TopTools_ListOfShape, TopTools_ShapeMapHasher>
++  TopTools_IndexedDataMapOfShapeListOfShape;
++
++#endif // _TopTools_IndexedDataMapOfShapeListOfShape_hxx
+diff --git a/salomesmesh/occt8-compat/include/TopTools_IndexedMapOfOrientedShape.hxx b/salomesmesh/occt8-compat/include/TopTools_IndexedMapOfOrientedShape.hxx
+new file mode 100644
+index 0000000..dc03da0
+--- /dev/null
++++ b/salomesmesh/occt8-compat/include/TopTools_IndexedMapOfOrientedShape.hxx
+@@ -0,0 +1,33 @@
++// Copyright (c) 2025 OPEN CASCADE SAS
++//
++// This file is part of Open CASCADE Technology software library.
++//
++// This library is free software; you can redistribute it and/or modify it under
++// the terms of the GNU Lesser General Public License version 2.1 as published
++// by the Free Software Foundation, with special exception defined in the file
++// OCCT_LGPL_EXCEPTION.txt. Consult the file LICENSE_LGPL_21.txt included in OCCT
++// distribution for complete text of the license and disclaimer of any warranty.
++//
++// Alternatively, this file may be used under the terms of Open CASCADE
++// commercial license or contractual agreement.
++
++//! @file TopTools_IndexedMapOfOrientedShape.hxx
++//! @brief Deprecated typedef for backward compatibility.
++//! @deprecated This header is deprecated since OCCT 8.0.0.
++//!             Use NCollection_IndexedMap<TopoDS_Shape> directly instead.
++
++#ifndef _TopTools_IndexedMapOfOrientedShape_hxx
++#define _TopTools_IndexedMapOfOrientedShape_hxx
++
++#include <Standard_Macro.hxx>
++#include <TopoDS_Shape.hxx>
++#include <NCollection_IndexedMap.hxx>
++
++Standard_HEADER_DEPRECATED("TopTools_IndexedMapOfOrientedShape.hxx is deprecated since OCCT 8.0.0. "
++                           "Use NCollection_IndexedMap<TopoDS_Shape> directly.")
++
++  Standard_DEPRECATED("TopTools_IndexedMapOfOrientedShape is deprecated, use "
++                      "NCollection_IndexedMap<TopoDS_Shape> directly")
++typedef NCollection_IndexedMap<TopoDS_Shape> TopTools_IndexedMapOfOrientedShape;
++
++#endif // _TopTools_IndexedMapOfOrientedShape_hxx
+diff --git a/salomesmesh/occt8-compat/include/TopTools_IndexedMapOfShape.hxx b/salomesmesh/occt8-compat/include/TopTools_IndexedMapOfShape.hxx
+new file mode 100644
+index 0000000..40e6b49
+--- /dev/null
++++ b/salomesmesh/occt8-compat/include/TopTools_IndexedMapOfShape.hxx
+@@ -0,0 +1,34 @@
++// Copyright (c) 2025 OPEN CASCADE SAS
++//
++// This file is part of Open CASCADE Technology software library.
++//
++// This library is free software; you can redistribute it and/or modify it under
++// the terms of the GNU Lesser General Public License version 2.1 as published
++// by the Free Software Foundation, with special exception defined in the file
++// OCCT_LGPL_EXCEPTION.txt. Consult the file LICENSE_LGPL_21.txt included in OCCT
++// distribution for complete text of the license and disclaimer of any warranty.
++//
++// Alternatively, this file may be used under the terms of Open CASCADE
++// commercial license or contractual agreement.
++
++//! @file TopTools_IndexedMapOfShape.hxx
++//! @brief Deprecated typedef for backward compatibility.
++//! @deprecated This header is deprecated since OCCT 8.0.0.
++//!             Use NCollection_IndexedMap<TopoDS_Shape, TopTools_ShapeMapHasher> directly instead.
++
++#ifndef _TopTools_IndexedMapOfShape_hxx
++#define _TopTools_IndexedMapOfShape_hxx
++
++#include <Standard_Macro.hxx>
++#include <TopTools_ShapeMapHasher.hxx>
++#include <NCollection_IndexedMap.hxx>
++
++Standard_HEADER_DEPRECATED(
++  "TopTools_IndexedMapOfShape.hxx is deprecated since OCCT 8.0.0. Use "
++  "NCollection_IndexedMap<TopoDS_Shape, TopTools_ShapeMapHasher> directly.")
++
++  Standard_DEPRECATED("TopTools_IndexedMapOfShape is deprecated, use "
++                      "NCollection_IndexedMap<TopoDS_Shape, TopTools_ShapeMapHasher> directly")
++typedef NCollection_IndexedMap<TopoDS_Shape, TopTools_ShapeMapHasher> TopTools_IndexedMapOfShape;
++
++#endif // _TopTools_IndexedMapOfShape_hxx
+diff --git a/salomesmesh/occt8-compat/include/TopTools_ListIteratorOfListOfShape.hxx b/salomesmesh/occt8-compat/include/TopTools_ListIteratorOfListOfShape.hxx
+new file mode 100644
+index 0000000..5dd2335
+--- /dev/null
++++ b/salomesmesh/occt8-compat/include/TopTools_ListIteratorOfListOfShape.hxx
+@@ -0,0 +1,14 @@
++// S5 data-patch 0002 — OCCT 8.0 compat shim (hand-written, 2026-10-29).
++//
++// OCCT 8.0 removed the standalone TopTools_ListIteratorOfListOfShape.hxx
++// header; the iterator typedef now lives inside the deprecated-alias
++// header TopTools_ListOfShape.hxx (also in this directory, verbatim
++// from OCCT 8.0.1). Bundled SMESH 7.7.1 still includes the old header
++// name in ~10 files; this shim forwards it.
++
++#ifndef TopTools_ListIteratorOfListOfShape_HeaderFile
++#define TopTools_ListIteratorOfListOfShape_HeaderFile
++
++#include <TopTools_ListOfShape.hxx>
++
++#endif
+diff --git a/salomesmesh/occt8-compat/include/TopTools_ListOfShape.hxx b/salomesmesh/occt8-compat/include/TopTools_ListOfShape.hxx
+new file mode 100644
+index 0000000..70a3051
+--- /dev/null
++++ b/salomesmesh/occt8-compat/include/TopTools_ListOfShape.hxx
+@@ -0,0 +1,36 @@
++// Copyright (c) 2025 OPEN CASCADE SAS
++//
++// This file is part of Open CASCADE Technology software library.
++//
++// This library is free software; you can redistribute it and/or modify it under
++// the terms of the GNU Lesser General Public License version 2.1 as published
++// by the Free Software Foundation, with special exception defined in the file
++// OCCT_LGPL_EXCEPTION.txt. Consult the file LICENSE_LGPL_21.txt included in OCCT
++// distribution for complete text of the license and disclaimer of any warranty.
++//
++// Alternatively, this file may be used under the terms of Open CASCADE
++// commercial license or contractual agreement.
++
++//! @file TopTools_ListOfShape.hxx
++//! @brief Deprecated typedef for backward compatibility.
++//! @deprecated This header is deprecated since OCCT 8.0.0.
++//!             Use NCollection types directly instead.
++
++#ifndef _TopTools_ListOfShape_hxx
++#define _TopTools_ListOfShape_hxx
++
++#include <Standard_Macro.hxx>
++#include <TopoDS_Shape.hxx>
++#include <NCollection_List.hxx>
++
++Standard_HEADER_DEPRECATED(
++  "TopTools_ListOfShape.hxx is deprecated since OCCT 8.0.0. Use NCollection types directly.")
++
++  Standard_DEPRECATED(
++    "TopTools_ListOfShape is deprecated, use NCollection_List<TopoDS_Shape> directly")
++typedef NCollection_List<TopoDS_Shape> TopTools_ListOfShape;
++Standard_DEPRECATED("TopTools_ListIteratorOfListOfShape is deprecated, use "
++                    "NCollection_List<TopoDS_Shape>::Iterator directly")
++typedef NCollection_List<TopoDS_Shape>::Iterator TopTools_ListIteratorOfListOfShape;
++
++#endif // _TopTools_ListOfShape_hxx
+diff --git a/salomesmesh/occt8-compat/include/TopTools_MapOfShape.hxx b/salomesmesh/occt8-compat/include/TopTools_MapOfShape.hxx
+new file mode 100644
+index 0000000..73405f1
+--- /dev/null
++++ b/salomesmesh/occt8-compat/include/TopTools_MapOfShape.hxx
+@@ -0,0 +1,38 @@
++// Copyright (c) 2025 OPEN CASCADE SAS
++//
++// This file is part of Open CASCADE Technology software library.
++//
++// This library is free software; you can redistribute it and/or modify it under
++// the terms of the GNU Lesser General Public License version 2.1 as published
++// by the Free Software Foundation, with special exception defined in the file
++// OCCT_LGPL_EXCEPTION.txt. Consult the file LICENSE_LGPL_21.txt included in OCCT
++// distribution for complete text of the license and disclaimer of any warranty.
++//
++// Alternatively, this file may be used under the terms of Open CASCADE
++// commercial license or contractual agreement.
++
++//! @file TopTools_MapOfShape.hxx
++//! @brief Deprecated typedef for backward compatibility.
++//! @deprecated This header is deprecated since OCCT 8.0.0.
++//!             Use NCollection types directly instead.
++
++#ifndef _TopTools_MapOfShape_hxx
++#define _TopTools_MapOfShape_hxx
++
++#include <Standard_Macro.hxx>
++#include <TopoDS_Shape.hxx>
++#include <TopTools_ShapeMapHasher.hxx>
++#include <NCollection_Map.hxx>
++
++Standard_HEADER_DEPRECATED(
++  "TopTools_MapOfShape.hxx is deprecated since OCCT 8.0.0. Use NCollection types directly.")
++
++  Standard_DEPRECATED("TopTools_MapOfShape is deprecated, use NCollection_Map<TopoDS_Shape, "
++                      "TopTools_ShapeMapHasher> directly")
++typedef NCollection_Map<TopoDS_Shape, TopTools_ShapeMapHasher> TopTools_MapOfShape;
++Standard_DEPRECATED("TopTools_MapIteratorOfMapOfShape is deprecated, use "
++                    "NCollection_Map<TopoDS_Shape, TopTools_ShapeMapHasher>::Iterator directly")
++typedef NCollection_Map<TopoDS_Shape, TopTools_ShapeMapHasher>::Iterator
++  TopTools_MapIteratorOfMapOfShape;
++
++#endif // _TopTools_MapOfShape_hxx
+diff --git a/salomesmesh/occt8-compat/include/TopTools_SequenceOfShape.hxx b/salomesmesh/occt8-compat/include/TopTools_SequenceOfShape.hxx
+new file mode 100644
+index 0000000..8d9dcf6
+--- /dev/null
++++ b/salomesmesh/occt8-compat/include/TopTools_SequenceOfShape.hxx
+@@ -0,0 +1,33 @@
++// Copyright (c) 2025 OPEN CASCADE SAS
++//
++// This file is part of Open CASCADE Technology software library.
++//
++// This library is free software; you can redistribute it and/or modify it under
++// the terms of the GNU Lesser General Public License version 2.1 as published
++// by the Free Software Foundation, with special exception defined in the file
++// OCCT_LGPL_EXCEPTION.txt. Consult the file LICENSE_LGPL_21.txt included in OCCT
++// distribution for complete text of the license and disclaimer of any warranty.
++//
++// Alternatively, this file may be used under the terms of Open CASCADE
++// commercial license or contractual agreement.
++
++//! @file TopTools_SequenceOfShape.hxx
++//! @brief Deprecated typedef for backward compatibility.
++//! @deprecated This header is deprecated since OCCT 8.0.0.
++//!             Use NCollection_Sequence<TopoDS_Shape> directly instead.
++
++#ifndef _TopTools_SequenceOfShape_hxx
++#define _TopTools_SequenceOfShape_hxx
++
++#include <Standard_Macro.hxx>
++#include <TopoDS_Shape.hxx>
++#include <NCollection_Sequence.hxx>
++
++Standard_HEADER_DEPRECATED("TopTools_SequenceOfShape.hxx is deprecated since OCCT 8.0.0. Use "
++                           "NCollection_Sequence<TopoDS_Shape> directly.")
++
++  Standard_DEPRECATED(
++    "TopTools_SequenceOfShape is deprecated, use NCollection_Sequence<TopoDS_Shape> directly")
++typedef NCollection_Sequence<TopoDS_Shape> TopTools_SequenceOfShape;
++
++#endif // _TopTools_SequenceOfShape_hxx

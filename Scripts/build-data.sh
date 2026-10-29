@@ -30,6 +30,24 @@
 #   FiltersVerdict (vtkMeshQuality) — this stage builds that subset
 #   of the pinned VTK 9.7.0 (it overlaps S6's larger FEM subset by
 #   design; S7 merges prefixes of the same VTK version).
+# * OCCT 8.0 gap of the bundled copy — censused file-by-file and
+#   bridged by data-patch 0002 (additive files only, no SMESH source
+#   edits; details in the patch's occt8-compat/README.md): OCCT 8.0
+#   removed the TColgp/TColStd/TopTools collection headers SMESH
+#   includes in ~23 compiled files, BUT OCCT 8.0.1 itself ships
+#   them as deprecated typedef aliases (src/Deprecated/
+#   NCollectionAliases/) — cascade-ios's staging pruned that
+#   directory, so the patch re-stages the 38 alias headers SMESH
+#   needs (verbatim OCCT 8.0.1) + OCCT 7.9's Bnd_B2d/Bnd_B3d
+#   classes (removed outright in 8.0; SMESH's octree box types;
+#   verbatim, compiled as libocct8compat.a) + two hand shims.
+#   Everything scarier turned out to be dead code: the NCollection
+#   Define-macro/BaseCollection headers are referenced only by
+#   SMESH headers nothing includes; the old RTTI .ixx, Perf_Meter,
+#   Adaptor3d_HSurface's use and Handle_MeshVS* all sit inside
+#   OCC_VERSION_HEX < 0x070000 (or < 0x070600) guards. The compat
+#   layer was host-verified against the real OCCT 8.0.1 headers
+#   (Bnd TUs + a typedef probe compile clean) before first CI.
 # * MEFISTO2 needs NO Fortran and NO f2c run: the tree ships
 #   src/MEFISTO2/trte.f AND its f2c translation trte.c (header:
 #   "translated by f2c (version 20100827)", hand-trimmed in 2014 so
@@ -433,7 +451,9 @@ ls -lh "$TARBALL"
 	echo "SMESH: FreeCAD bundled salomesmesh 7.7.1.0 from the pinned tarball,"
 	echo "  MED driver compiled in (in-tree HDF5 wrapper + libmed), MEFISTO2"
 	echo "  from the shipped f2c trte.c (no Fortran), NETGENPlugin OFF."
-	echo "  Superproject + patches: Scripts/data-patches/ (0001 static libs)."
+	echo "  Superproject + patches: Scripts/data-patches/ (0001 static libs;"
+	echo "  0002 OCCT-8 compat layer: OCCT 8.0.1 Deprecated alias headers +"
+	echo "  OCCT 7.9 Bnd_B2d/Bnd_B3d as libocct8compat.a + 2 shims)."
 	echo "  Link probe smesh_link_probe built and linked for iOS arm64."
 	echo "Tarball: dist/iosdeps-data-$DEPS_HASH.tar.zst"
 } | tee "$DIST/data-report.txt"

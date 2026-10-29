@@ -11,6 +11,13 @@
 # the SMESH sources themselves are unmodified except for the
 # enumerated patches in Scripts/data-patches/ (0001: SHARED->STATIC).
 #
+# Patch 0002 (salomesmesh/occt8-compat/, added by the patch — see
+# its README.md) supplies the OCCT 8.0 compatibility layer: OCCT
+# 8.0.1's own Deprecated/NCollectionAliases typedef headers (pruned
+# from the cascade-ios staging our OCCT prefix is built from) plus
+# the OCCT 7.9 Bnd_B2d/Bnd_B3d classes OCCT 8 removed, compiled
+# below as libocct8compat.a.
+#
 # Expected -D inputs (set by Scripts/build-data.sh):
 #   DEPS_PREFIX  merged foundations+OCCT ios-prefix (Boost, zlib, OCCT)
 #   DATA_PREFIX  this stage's ios-prefix (HDF5, libmed, VTK already
@@ -92,6 +99,20 @@ set(SMESH_VERSION_TWEAK 0)
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/SMESH_Version.h.cmake"
 	"${CMAKE_CURRENT_BINARY_DIR}/SMESH_Version.h" @ONLY)
 
+# OCCT 8 compat layer (patch 0002): alias headers must be visible to
+# every salomesmesh target, and the Bnd classes compile as their own
+# archive. The deprecated-alias headers emit deprecation warnings by
+# design; silence that one class so real diagnostics stay visible.
+add_compile_options(-Wno-deprecated-declarations)
+include_directories(
+	"${CMAKE_CURRENT_SOURCE_DIR}/salomesmesh/occt8-compat/include"
+	"${CMAKE_CURRENT_SOURCE_DIR}/salomesmesh/occt8-compat/Bnd")
+add_library(occt8compat STATIC
+	"${CMAKE_CURRENT_SOURCE_DIR}/salomesmesh/occt8-compat/cxx/Bnd_B2d_0.cxx"
+	"${CMAKE_CURRENT_SOURCE_DIR}/salomesmesh/occt8-compat/cxx/Bnd_B3d_0.cxx")
+target_include_directories(occt8compat PRIVATE "${OCC_INCLUDE_DIR}")
+install(TARGETS occt8compat ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}")
+
 add_subdirectory(salomesmesh)
 
 # Upstream's CMakeLists installs only the libraries; S7's
@@ -123,6 +144,7 @@ target_include_directories(smesh_link_probe PRIVATE
 	"${DEPS_PREFIX}/include")
 target_link_libraries(smesh_link_probe PRIVATE
 	"$<LINK_GROUP:RESCAN,SMESH,StdMeshers,MEFISTO2,SMESHDS,SMDS,Driver,DriverSTL,DriverDAT,DriverUNV>"
+	occt8compat
 	${MEDFILE_LIBRARIES} ${VTK_LIBRARIES} ${HDF5_C_STATIC_LIBRARY}
 	${Boost_LIBRARIES} ${OPENCASCADE_LIBRARIES}
 	"${DEPS_PREFIX}/lib/libz.a")
