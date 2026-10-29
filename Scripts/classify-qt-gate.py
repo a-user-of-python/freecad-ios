@@ -51,6 +51,7 @@ DEP_PATTERNS = [
     (r"Matplotlib|matplotlib", "Matplotlib (python runtime check)"),
 ]
 CONFIG_PATTERNS = [
+    (r"iphoneos is not an iOS SDK|SDK.*cannot be located|No iOS SDK", "iPhoneOS SDK resolution on the runner (CMake 4.x validates qt.toolchain's name-based sysroot via xcrun; SDK-bearing Xcode must not be deleted by the maximize step)"),
     (r"GLU|OpenGL|GLESv2|\bEGL\b", "OpenGL/GLU/GLES: iOS SDK resolution + gl4es companion GLU (S4) or a probe seed; SetupOpenGL.cmake fatals pre-Qt"),
     (r"try_run|TRY_RUN|Check.*does not|check_cxx|test.*failed", "try-run / feature introspection under cross-compile — seed or disable, feedstock-style"),
     (r"Qt6?[A-Z]\w*.*NOTFOUND|Qt6.*not found|Could NOT find Qt", "Qt component resolution (host-path / kit module)"),
@@ -173,7 +174,12 @@ def main():
                 tag = "DEP"  # kit module not installed via aqt
                 label = "Qt component missing from the installed kit (aqt module) — " + label
             all_items.append((tag, label, "battery", block))
-    if battery_bld and "error:" in battery_bld:
+    # Only analyse the battery BUILD log if the battery CONFIGURE
+    # succeeded — otherwise the build log is just ninja's cascade
+    # error for a build tree that was never generated (run
+    # 40957050742 produced a spurious item this way).
+    battery_cfg_ok = "Configuring done" in battery_cfg
+    if battery_cfg_ok and battery_bld and "error:" in battery_bld:
         apis = [a for a in ("flip", "flipped", "PdfVersion_X4", "checkStateChanged")
                 if a in battery_bld]
         for a in apis:

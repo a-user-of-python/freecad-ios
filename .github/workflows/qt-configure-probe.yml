@@ -45,13 +45,15 @@ jobs:
         run: |
           df -h
           sudo rm -rf /usr/share/dotnet /opt/ghc 2>/dev/null || true
-          for x in /Applications/Xcode_*.app; do
-            [ "$x" = "/Applications/Xcode.app" ] || sudo rm -rf "$x"
-          done 2>/dev/null || true
+          # Do NOT delete sibling Xcode bundles (spike-s4 lesson, and
+          # probe runs 40946217444/40957050742): on some macos-26
+          # runners the iPhoneOS SDK exists only in a sibling Xcode
+          # (the default Xcode.app lacks the downloadable platform);
+          # deleting siblings left NO iOS SDK on the runner and CMake
+          # 4.x fataled with "iphoneos is not an iOS SDK" before any
+          # Qt code was reached. The runner has ~100 GB free; no
+          # space pressure justifies it.
           rm -rf ~/Library/Developer/CoreSimulator/Profiles/Runtimes/* 2>/dev/null || true
-          # Run 40946217444: xcode-select pointed at CommandLineTools,
-          # so the iPhoneOS SDK discovery came back empty. Reset it
-          # (spike-s4 pattern) before the probe script runs.
           sudo xcode-select -s /Applications/Xcode.app || true
           xcodebuild -version || true
           df -h
