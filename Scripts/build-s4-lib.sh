@@ -67,13 +67,13 @@ fetch_gl4es() {
 		echo "gl4es patch 0001: already applied"
 	else
 		python3 - "$AH" <<'PY'
-import sys
+import re, sys
 p = sys.argv[1]
 s = open(p).read()
-old = "#ifdef __GNUC__\n\n   #define AliasDecl"
-new = "#if defined(__GNUC__) && !defined(__APPLE__)\n\n   #define AliasDecl"
-assert old in s, "AliasDecl anchor not found"
-open(p, "w").write(s.replace(old, new, 1))
+pat = re.compile(r"#ifdef __GNUC__(?=\s*\n\s*#define AliasDecl)")
+s2, n = pat.subn("#if defined(__GNUC__) && !defined(__APPLE__)", s, count=1)
+assert n == 1, "AliasDecl guard anchor not found"
+open(p, "w").write(s2)
 print("gl4es patch 0001: applied (AliasDecl __APPLE__ guard)")
 PY
 	fi
