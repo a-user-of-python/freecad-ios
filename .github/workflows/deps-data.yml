@@ -6,16 +6,16 @@ on:
     paths:
       - "PIN.md"
       - "Scripts/build-data.sh"
+      - "Scripts/data-patches/**"
       - ".github/workflows/deps-data.yml"
-
-concurrency:
-  group: deps-data-${{ github.ref }}
-  cancel-in-progress: false
 
 jobs:
   build:
     name: iosdeps-data tarball
     runs-on: macos-26
+    permissions:
+      contents: read
+      actions: read
     steps:
       - uses: actions/checkout@v4
 
@@ -30,9 +30,11 @@ jobs:
           df -h
 
       - name: Compute content hash
-        run: echo "DEPS_HASH=${{ hashFiles('PIN.md', 'Scripts/build-data.sh') }}" >> "$GITHUB_ENV"
+        run: echo "DEPS_HASH=${{ hashFiles('PIN.md', 'Scripts/build-data.sh', 'Scripts/data-patches/**') }}" >> "$GITHUB_ENV"
 
-      - name: Build data layer (HDF5, SMESH; iOS arm64)
+      - name: Build data layer (HDF5, VTK subset, libmed, SMESH; iOS arm64)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: bash Scripts/build-data.sh
 
       - name: Upload deps tarball

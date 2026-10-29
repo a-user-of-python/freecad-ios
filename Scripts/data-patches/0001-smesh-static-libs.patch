@@ -1,0 +1,93 @@
+diff --git a/salomesmesh/CMakeLists.txt b/salomesmesh/CMakeLists.txt
+--- a/salomesmesh/CMakeLists.txt
++++ b/salomesmesh/CMakeLists.txt
+@@ -184,7 +184,7 @@
+ # SMDS #
+ #########
+ FILE(GLOB SMDS_source_files src/SMDS/*.cpp inc/SMDS*.hxx)
+-ADD_LIBRARY(SMDS SHARED ${SMDS_source_files})
++ADD_LIBRARY(SMDS STATIC ${SMDS_source_files})
+ TARGET_LINK_LIBRARIES(SMDS ${SMESH_LIBS} ${HDF5_C_STATIC_LIBRARY} ${VTK_LIBRARIES})
+ 
+ SET_BIN_DIR(SMDS)
+@@ -197,7 +197,7 @@
+ # Driver #
+ ##########
+ FILE(GLOB Driver_source_files src/Driver/*.cpp inc/Driver_*.hxx)
+-ADD_LIBRARY(Driver SHARED ${Driver_source_files})
++ADD_LIBRARY(Driver STATIC ${Driver_source_files})
+ TARGET_LINK_LIBRARIES(Driver ${SMESH_LIBS})
+ 
+ SET_BIN_DIR(Driver)
+@@ -209,7 +209,7 @@
+ # DriverSTL #
+ #############
+ FILE(GLOB DriverSTL_source_files src/DriverSTL/*.cpp inc/DriverSTL*.h*)
+-ADD_LIBRARY(DriverSTL SHARED ${DriverSTL_source_files})
++ADD_LIBRARY(DriverSTL STATIC ${DriverSTL_source_files})
+ TARGET_LINK_LIBRARIES(DriverSTL ${SMESH_LIBS} Driver SMDS ${Boost_LIBRARIES})
+ 
+ SET_BIN_DIR(DriverSTL)
+@@ -221,7 +221,7 @@
+ # DriverDAT #
+ #############
+ FILE(GLOB DriverDAT_source_files src/DriverDAT/*.cpp inc/DriverDAT*.h*)
+-ADD_LIBRARY(DriverDAT SHARED ${DriverDAT_source_files})
++ADD_LIBRARY(DriverDAT STATIC ${DriverDAT_source_files})
+ TARGET_LINK_LIBRARIES(DriverDAT ${SMESH_LIBS} SMDS Driver)
+ 
+ SET_BIN_DIR(DriverDAT)
+@@ -233,7 +233,7 @@
+ # DriverUNV #
+ #############
+ FILE(GLOB DriverUNV_source_files src/DriverUNV/*.cpp inc/DriverUNV*.h*)
+-ADD_LIBRARY(DriverUNV SHARED ${DriverUNV_source_files})
++ADD_LIBRARY(DriverUNV STATIC ${DriverUNV_source_files})
+ TARGET_LINK_LIBRARIES(DriverUNV ${SMESH_LIBS} SMESHDS SMDS Driver)
+ 
+ SET_BIN_DIR(DriverUNV)
+@@ -245,7 +245,7 @@
+ # SMESHDS #
+ ###########
+ FILE(GLOB SMESHDS_source_files src/SMESHDS/*.cpp inc/SMESHDS_*.h*)
+-ADD_LIBRARY(SMESHDS SHARED ${SMESHDS_source_files})
++ADD_LIBRARY(SMESHDS STATIC ${SMESHDS_source_files})
+ TARGET_LINK_LIBRARIES(SMESHDS ${SMESH_LIBS} SMDS ${Boost_LIBRARIES} )
+ 
+ SET_BIN_DIR(SMESHDS)
+@@ -254,7 +254,7 @@
+ # SMESH #
+ #########
+ FILE(GLOB SMESH_source_files src/SMESH/*.c src/SMESH/*.cpp src/Controls/*.cpp inc/SMESH_*.h*)
+-ADD_LIBRARY(SMESH SHARED ${SMESH_source_files})
++ADD_LIBRARY(SMESH STATIC ${SMESH_source_files})
+ TARGET_LINK_LIBRARIES(SMESH SMDS SMESHDS  Driver DriverSTL DriverDAT DriverUNV ${SMESH_LIBS} ${OPENCASCADE_LIBRARIES} ${OCC_LIBRARIES} ${OCC_DEBUG_LIBRARIES} ${OCC_OCAF_DEBUG_LIBRARIES} ${OCC_OCAF_LIBRARIES} ${MEDFILE_LIBRARIES} ${VTK_LIBRARIES})
+  
+ SET_BIN_DIR(SMESH)
+@@ -272,7 +272,7 @@
+         inc/aptrte.h
+ )        
+ 
+-ADD_LIBRARY(MEFISTO2 SHARED ${MEFISTO2_source_files})
++ADD_LIBRARY(MEFISTO2 STATIC ${MEFISTO2_source_files})
+ 
+ SET_BIN_DIR(MEFISTO2)
+ TARGET_LINK_LIBRARIES(MEFISTO2 ${SMESH_LIBS}) # in case of Windows link the prebuild Fortran lib
+@@ -283,7 +283,7 @@
+ # StdMeshers #
+ ##############
+ FILE(GLOB StdMeshers_source_files src/StdMeshers/*.cpp inc/StdMeshers_*.h*)
+-ADD_LIBRARY(StdMeshers SHARED ${StdMeshers_source_files})
++ADD_LIBRARY(StdMeshers STATIC ${StdMeshers_source_files})
+ TARGET_LINK_LIBRARIES(StdMeshers SMESH ${SMESH_LIBS} MEFISTO2)
+ 
+ SET_BIN_DIR(StdMeshers)
+@@ -300,7 +300,7 @@
+ # NETGENPlugin #
+ ################
+ FILE(GLOB NETGENPlugin_source_files src/NETGENPlugin/*.cpp inc/NETGENPlugin_*.h* )
+-ADD_LIBRARY(NETGENPlugin SHARED ${NETGENPlugin_source_files})
++ADD_LIBRARY(NETGENPlugin STATIC ${NETGENPlugin_source_files})
+ TARGET_LINK_LIBRARIES(NETGENPlugin SMDS SMESHDS SMESH StdMeshers ${SMESH_LIBS} )
+ 
+ SET_BIN_DIR(NETGENPlugin)

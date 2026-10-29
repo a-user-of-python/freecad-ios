@@ -1,0 +1,128 @@
+# S5 SMESH superproject — builds FreeCAD's bundled salomesmesh
+# (src/3rdParty/salomesmesh from the pinned tarball; SMESH 7.7.1.0)
+# standalone for iOS arm64.
+#
+# Why this file exists: the bundled CMakeLists.txt has no standalone
+# entry point — it is written to be add_subdirectory()'d from
+# FreeCAD's top-level build, which first runs SetupSalomeSMESH.cmake
+# (setting OCC_*, HDF5_*, MEDFILE_*, VTK_*, Boost_* variables) and
+# includes FreeCadMacros.cmake (defining SET_BIN_DIR). This
+# superproject supplies exactly that environment and nothing else;
+# the SMESH sources themselves are unmodified except for the
+# enumerated patches in Scripts/data-patches/ (0001: SHARED->STATIC).
+#
+# Expected -D inputs (set by Scripts/build-data.sh):
+#   DEPS_PREFIX  merged foundations+OCCT ios-prefix (Boost, zlib, OCCT)
+#   DATA_PREFIX  this stage's ios-prefix (HDF5, libmed, VTK already
+#                installed there; SMESH installs there too)
+cmake_minimum_required(VERSION 3.16)
+project(freecad_smesh_ios C CXX)
+
+if(NOT DEFINED DEPS_PREFIX OR NOT DEFINED DATA_PREFIX)
+	message(FATAL_ERROR "pass -DDEPS_PREFIX=... -DDATA_PREFIX=...")
+endif()
+
+include(GNUInstallDirs)
+# salomesmesh/CMakeLists.txt calls check_cxx_compiler_flag() bare —
+# in FreeCAD builds the top level has already included these.
+include(CheckCXXCompilerFlag)
+include(CheckCCompilerFlag)
+
+# FreeCadMacros.cmake's SET_BIN_DIR only retargets build-tree output
+# directories per configuration; install rules below (upstream's own)
+# place the static archives, so a no-op is semantically exact here.
+function(SET_BIN_DIR ProjectName)
+endfunction()
+
+set(BUILD_FEM_NETGEN OFF CACHE BOOL "NETGENPlugin needs netgen; off (FreeCAD iOS default shape)" FORCE)
+set(BUILD_SHARED_LIBS OFF)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# ---- variables salomesmesh/CMakeLists.txt expects ------------------
+set(OCC_INCLUDE_DIR "${DEPS_PREFIX}/include/opencascade")
+set(OCC_LIBRARY_DIR "${DEPS_PREFIX}/lib")
+# ${OCC_LIBRARIES} as FreeCAD's configure resolves them for the
+# modelling side (census set minus the OCAF/exchange tail below).
+set(OCC_LIBRARIES
+	TKernel TKMath TKG2d TKG3d TKGeomBase TKBRep TKGeomAlgo TKTopAlgo
+	TKPrim TKBO TKShHealing TKBool TKHLR TKFeat TKMesh TKFillet
+	TKOffset TKExpress TKService TKV3d TKMeshVS)
+set(OCC_OCAF_LIBRARIES
+	TKCDF TKLCAF TKCAF TKBinL TKBin TKVCAF TKXSBase TKDE TKDESTEP
+	TKDEIGES TKDEGLTF TKDESTL TKXCAF TKRWMesh)
+set(OPENCASCADE_LIBRARIES ${OCC_LIBRARIES} ${OCC_OCAF_LIBRARIES})
+set(OCC_DEBUG_LIBRARIES "")
+set(OCC_OCAF_DEBUG_LIBRARIES "")
+
+set(Boost_INCLUDE_DIRS "${DEPS_PREFIX}/include")
+set(BOOST_INCLUDE_DIR "${DEPS_PREFIX}/include")
+file(GLOB Boost_LIBRARIES "${DEPS_PREFIX}/lib/libboost_*.a")
+
+set(ZLIB_INCLUDE_DIR "${DEPS_PREFIX}/include")
+
+set(HDF5_INCLUDE_DIR "${DATA_PREFIX}/include")
+set(HDF5_C_STATIC_LIBRARY "${DATA_PREFIX}/lib/libhdf5.a")
+
+set(MEDFILE_INCLUDE_DIRS "${DATA_PREFIX}/include")
+file(GLOB MEDFILE_LIBRARIES "${DATA_PREFIX}/lib/libmed*.a")
+
+# SMESH's SMDS layer is built on VTK (SMDS_Mesh stores its data in a
+# vtkUnstructuredGrid; 16 source files include VTK headers directly).
+# The subset in DATA_PREFIX is the one build-data.sh staged for it.
+file(GLOB VTK_LIBRARIES "${DATA_PREFIX}/lib/libvtk*.a")
+set(VTK_INCLUDE_DIRS "${DATA_PREFIX}/include/vtk-9.7")
+
+# NETGEN off (BUILD_FEM_NETGEN=OFF): variables only read inside the
+# gated block, defined empty for safety.
+set(NGLIB_INCLUDE_DIR "")
+set(NETGEN_INCLUDE_DIRS "")
+set(NGLIB_LIBRARIES "")
+set(NGLIB_DEBUG_LIBRARIES "")
+set(NETGEN_DEFINITIONS "")
+
+# SMESH_Version.h — FreeCAD's SetupSalomeSMESH configures this from
+# src/SMESH_Version.h.cmake (extracted next to salomesmesh/ by
+# build-data.sh) with these exact version values (they are set in
+# both SetupSalomeSMESH.cmake and salomesmesh/CMakeLists.txt).
+set(SMESH_VERSION_MAJOR 7)
+set(SMESH_VERSION_MINOR 7)
+set(SMESH_VERSION_PATCH 1)
+set(SMESH_VERSION_TWEAK 0)
+configure_file("${CMAKE_CURRENT_SOURCE_DIR}/SMESH_Version.h.cmake"
+	"${CMAKE_CURRENT_BINARY_DIR}/SMESH_Version.h" @ONLY)
+
+add_subdirectory(salomesmesh)
+
+# Upstream's CMakeLists installs only the libraries; S7's
+# find_package(SMESH) consumption also needs the headers.
+install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/salomesmesh/inc/"
+	DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/salomesmesh"
+	FILES_MATCHING PATTERN "*.h" PATTERN "*.hxx" PATTERN "*.hpp")
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/SMESH_Version.h"
+	DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/salomesmesh")
+
+# ---- link probe -----------------------------------------------------
+# A real iOS-arm64 link of a translation unit that constructs a
+# SMESH_Gen (which pulls SMESH_Mesh, the MED driver, MEFISTO2 via
+# StdMeshers, SMDS/VTK and the OCCT surface). This is the stage's
+# proof that the SMESH archives resolve against OCCT 8.0.1 + VTK 9.7
+# + HDF5 + libmed as a static set. Never run (iOS binary); link-only.
+file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/probe.cpp" "
+#include \"SMESH_Gen.hxx\"
+#include \"SMESH_Mesh.hxx\"
+int main() { SMESH_Gen* gen = new SMESH_Gen(); (void)gen; return 0; }
+")
+add_executable(smesh_link_probe "${CMAKE_CURRENT_BINARY_DIR}/probe.cpp")
+target_include_directories(smesh_link_probe PRIVATE
+	"${CMAKE_CURRENT_SOURCE_DIR}/salomesmesh/inc"
+	"${CMAKE_CURRENT_BINARY_DIR}"
+	"${OCC_INCLUDE_DIR}"
+	"${DATA_PREFIX}/include"
+	"${DATA_PREFIX}/include/vtk-9.7"
+	"${DEPS_PREFIX}/include")
+target_link_libraries(smesh_link_probe PRIVATE
+	"$<LINK_GROUP:RESCAN,SMESH,StdMeshers,MEFISTO2,SMESHDS,SMDS,Driver,DriverSTL,DriverDAT,DriverUNV>"
+	${MEDFILE_LIBRARIES} ${VTK_LIBRARIES} ${HDF5_C_STATIC_LIBRARY}
+	${Boost_LIBRARIES} ${OPENCASCADE_LIBRARIES}
+	"${DEPS_PREFIX}/lib/libz.a")

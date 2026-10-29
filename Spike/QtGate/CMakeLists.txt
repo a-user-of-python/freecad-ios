@@ -47,19 +47,19 @@ endif()
 message(STATUS "QTGATE: Qt version under test: ${Qt6Core_VERSION}")
 message(STATUS "QTGATE: all REQUIRED SetupQt components found")
 
-qt_add_executable(qtgate_battery main.cpp widget.ui)
+# FreeCAD's rcc options (SetupQt.cmake FREECAD_RCC_OPTIONS), passed
+# exactly the way src/Gui/CMakeLists.txt passes them — the variable
+# form of qt_add_resources with OPTIONS: the host rcc from
+# QT_HOST_PATH must accept the zstd algorithm + level 19.
+qt_add_resources(QTGATE_RES_SRCS res.qrc
+    OPTIONS --compress-algo zstd --compress 19 --threshold 70)
+message(STATUS "QTGATE: rcc zstd resource step configured")
+
+qt_add_executable(qtgate_battery main.cpp widget.ui ${QTGATE_RES_SRCS})
 target_link_libraries(qtgate_battery PRIVATE
     Qt6::Core Qt6::Concurrent Qt6::Network Qt6::Xml
     Qt6::SvgWidgets Qt6::OpenGLWidgets Qt6::OpenGL Qt6::PrintSupport
     Qt6::Svg Qt6::UiTools Qt6::Widgets)
-
-# FreeCAD's rcc options (SetupQt.cmake FREECAD_RCC_OPTIONS): the host
-# rcc from QT_HOST_PATH must accept the zstd algorithm + level 19.
-qt_add_resources(qtgate_battery "qtgate_res"
-    PREFIX "/qtgate"
-    FILES res.txt
-    OPTIONS --compress-algo zstd --compress 19 --threshold 70)
-message(STATUS "QTGATE: rcc zstd resource step configured")
 
 # LinguistTools: FreeCAD calls qt_add_translation on its .ts files.
 qt_add_translation(QTGATE_QM_FILES dummy.ts)
