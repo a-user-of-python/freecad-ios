@@ -1,0 +1,74 @@
+name: Spike S3 A2 — FreeCAD console stack (gated on deps)
+
+# Phase A2 of spike S3. Manual dispatch ONLY: it needs the run IDs of
+# the deps-foundations, deps-occt and deps-python runs whose artifacts
+# it consumes. Spike/S3/build-a2.sh re-checks for the tarballs and
+# reports A2-GATE-CLOSED (green, no build) if any is missing.
+
+on:
+  workflow_dispatch:
+    inputs:
+      foundations_run_id:
+        description: "deps-foundations run id"
+        required: true
+      occt_run_id:
+        description: "deps-occt run id"
+        required: true
+      python_run_id:
+        description: "deps-python run id"
+        required: true
+
+jobs:
+  a2:
+    name: S3 A2 console stack (simulator)
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Maximize build space
+        run: |
+          df -h
+          sudo rm -rf /usr/share/dotnet /opt/ghc 2>/dev/null || true
+          rm -rf ~/Library/Developer/CoreSimulator/Profiles/Runtimes/* 2>/dev/null || true
+          df -h
+
+      - name: Download dependency tarballs
+        uses: actions/download-artifact@v4
+        with:
+          pattern: iosdeps-*
+          merge-multiple: true
+          path: ios-deps-artifacts
+          run-id: ${{ inputs.foundations_run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
+
+      - name: Download OCCT tarball
+        uses: actions/download-artifact@v4
+        with:
+          pattern: iosdeps-*
+          merge-multiple: true
+          path: ios-deps-artifacts
+          run-id: ${{ inputs.occt_run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
+
+      - name: Download Python tarball
+        uses: actions/download-artifact@v4
+        with:
+          pattern: iosdeps-*
+          merge-multiple: true
+          path: ios-deps-artifacts
+          run-id: ${{ inputs.python_run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
+
+      - name: A2 gate + build + simulator run
+        run: bash Spike/S3/build-a2.sh
+
+      - name: Upload A2 results
+        uses: actions/upload-artifact@v4
+        with:
+          name: spike-s3-a2-results
+          path: dist-s3-a2/
+          retention-days: 90
+          if-no-files-found: warn
