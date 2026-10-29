@@ -1,0 +1,100 @@
+name: Qt gate probe — FreeCAD configure vs Qt 6.9.3 (Front 4)
+
+# Synthesis §1.3's deciding experiment, pulled forward. CONFIGURE-ONLY
+# probe: does the pinned snapshot (weekly-2026.09.16) configure against
+# the Qt 6.9.3 iOS kit, and is any failure [QT-API] (gate) or
+# [DEP]/[CONFIG] (engineering)? Standard macos-26 ONLY. This workflow
+# never builds FreeCAD — Stage 7 stays gated on S3+S4.
+#
+# Deps: pass the deps run ids (A2 pattern) OR let the script poll the
+# API for the newest REAL artifacts (bounded by poll_minutes).
+
+on:
+  workflow_dispatch:
+    inputs:
+      foundations_run_id:
+        description: "deps-foundations run id (optional; blank = API poll)"
+        required: false
+        default: ""
+      occt_run_id:
+        description: "deps-occt run id (optional; blank = API poll)"
+        required: false
+        default: ""
+      python_run_id:
+        description: "deps-python run id (optional; blank = API poll)"
+        required: false
+        default: ""
+      poll_minutes:
+        description: "API poll budget for deps that have not landed yet"
+        required: false
+        default: "45"
+
+concurrency:
+  group: qt-configure-probe-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  probe:
+    name: Qt 6.9.3 configure gate probe
+    runs-on: macos-26
+    timeout-minutes: 330
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Maximize build space
+        run: |
+          df -h
+          sudo rm -rf /usr/share/dotnet /opt/ghc 2>/dev/null || true
+          for x in /Applications/Xcode_*.app; do
+            [ "$x" = "/Applications/Xcode.app" ] || sudo rm -rf "$x"
+          done 2>/dev/null || true
+          rm -rf ~/Library/Developer/CoreSimulator/Profiles/Runtimes/* 2>/dev/null || true
+          df -h
+
+      - name: Download foundations tarball (input run)
+        if: inputs.foundations_run_id != ''
+        uses: actions/download-artifact@v4
+        with:
+          pattern: iosdeps-*
+          merge-multiple: true
+          path: ios-deps-artifacts
+          run-id: ${{ inputs.foundations_run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
+
+      - name: Download OCCT tarball (input run)
+        if: inputs.occt_run_id != ''
+        uses: actions/download-artifact@v4
+        with:
+          pattern: iosdeps-*
+          merge-multiple: true
+          path: ios-deps-artifacts
+          run-id: ${{ inputs.occt_run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
+
+      - name: Download Python tarball (input run)
+        if: inputs.python_run_id != ''
+        uses: actions/download-artifact@v4
+        with:
+          pattern: iosdeps-*
+          merge-multiple: true
+          path: ios-deps-artifacts
+          run-id: ${{ inputs.python_run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
+
+      - name: Run the Qt gate probe
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          POLL_MINUTES: ${{ inputs.poll_minutes }}
+        run: bash Scripts/probe-qt-configure.sh
+
+      - name: Upload probe evidence (verdict + logs)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qt-gate-evidence
+          path: dist-qtgate/
+          retention-days: 90
+          if-no-files-found: warn
