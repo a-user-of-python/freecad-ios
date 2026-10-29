@@ -57,6 +57,7 @@ target_link_libraries(S4Tier1 PRIVATE
   Quarter
   "${S4_ARCH_PREFIX}/lib/libGLU.a"
   "${S4_ARCH_PREFIX}/lib/libGL.a"
+  "${S4_ARCH_PREFIX}/lib/libGL4ESAppleFix.a"
   "-framework OpenGLES" "-framework CoreGraphics" "-framework QuartzCore"
   "-framework CoreFoundation" "-framework Foundation" "-framework UIKit"
   "-ldl" "-lm"

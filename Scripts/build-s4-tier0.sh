@@ -15,6 +15,8 @@ install_qt
 fetch_gl4es
 build_gl4es device
 build_gl4es sim
+build_gl4es_applefix device
+build_gl4es_applefix sim
 
 echo "== building Tier0 app (device arm64)"
 configure_app "$S4_ROOT/Spike/S4/Tier0" "$S4_WORK/tier0-device" device

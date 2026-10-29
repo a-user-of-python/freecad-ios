@@ -28,6 +28,7 @@ target_include_directories(S4Tier0 PRIVATE "${GL4ES_INC}")
 target_link_libraries(S4Tier0 PRIVATE
   Qt6::Widgets Qt6::OpenGL Qt6::OpenGLWidgets
   "${GL4ES_LIB}"
+  "${S4_PREFIX}/${S4_ARCH_DIR}/lib/libGL4ESAppleFix.a"
   "-framework OpenGLES" "-framework CoreGraphics" "-framework QuartzCore"
   "-ldl" "-lm")
 set_target_properties(S4Tier0 PROPERTIES

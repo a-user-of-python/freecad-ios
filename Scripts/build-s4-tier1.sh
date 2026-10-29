@@ -35,6 +35,7 @@ fetch_coin
 
 for arch in device sim; do
 	build_gl4es "$arch"
+	build_gl4es_applefix "$arch"
 	build_glu "$arch"
 	build_coin "$arch"
 done

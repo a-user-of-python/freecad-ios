@@ -45,14 +45,62 @@ install_qt() {
 
 fetch_gl4es() {
 	if [ ! -d "$S4_SRC/gl4es" ]; then
-		echo "== fetching gl4es (ptitSeb/gl4es, depth-1 clone of default branch)"
-		git clone --depth 1 https://github.com/ptitSeb/gl4es "$S4_SRC/gl4es"
+		echo "== fetching gl4es v1.1.6 (ptitSeb/gl4es release tag, pinned)"
+		git clone --depth 1 --branch v1.1.6 https://github.com/ptitSeb/gl4es "$S4_SRC/gl4es"
 	fi
 	if [ ! -f "$S4_SRC/ios-cmake/ios.toolchain.cmake" ]; then
 		echo "== fetching ios-cmake (leetal/ios-cmake)"
 		git clone --depth 1 https://github.com/leetal/ios-cmake "$S4_SRC/ios-cmake"
 	fi
-	git -C "$S4_SRC/gl4es" rev-parse HEAD | sed 's/^/gl4es HEAD: /' || true
+	git -C "$S4_SRC/gl4es" rev-parse HEAD | sed 's/^/gl4es commit: /' || true
+	# S4 PATCH 0001 (enumerated, applied to the gl4es checkout only):
+	# src/gl/attributes.h's AliasDecl uses __attribute__((alias)) under
+	# __GNUC__ with NO __APPLE__ exclusion — clang/Darwin hard-errors
+	# "aliases are not supported on darwin" in directstate.c. The
+	# neighbouring AliasExport macro DOES exclude __APPLE__ (falls back
+	# to a plain declaration). Mirror that for AliasDecl. Verified
+	# present in both v1.1.6 (c9895df3) and master HEAD c1d7d014.
+	# The two affected symbols get real forwarding definitions from
+	# gl4es_applefix.c below.
+	local AH="$S4_SRC/gl4es/src/gl/attributes.h"
+	if grep -q "defined(__GNUC__) && !defined(__APPLE__)" "$AH"; then
+		echo "gl4es patch 0001: already applied"
+	else
+		python3 - "$AH" <<'PY'
+import sys
+p = sys.argv[1]
+s = open(p).read()
+old = "#ifdef __GNUC__\n\n   #define AliasDecl"
+new = "#if defined(__GNUC__) && !defined(__APPLE__)\n\n   #define AliasDecl"
+assert old in s, "AliasDecl anchor not found"
+open(p, "w").write(s.replace(old, new, 1))
+print("gl4es patch 0001: applied (AliasDecl __APPLE__ guard)")
+PY
+	fi
+}
+
+# build_gl4es_applefix <device|sim> — forwarding definitions for the
+# two symbols patch 0001 turns into plain declarations:
+# gl4es_glEnableClientStatei / gl4es_glDisableClientStatei forward to
+# their *Indexed implementations (exactly what the ELF alias did).
+build_gl4es_applefix() {
+	local arch="$1" sdk tgt
+	if [ "$arch" = device ]; then sdk=iphoneos; tgt="arm64-apple-ios17.0"; else sdk=iphonesimulator; tgt="arm64-apple-ios17.0-simulator"; fi
+	local out="$S4_PREFIX/$arch/lib"
+	if [ -f "$out/libGL4ESAppleFix.a" ]; then return 0; fi
+	cat > "$S4_WORK/gl4es_applefix.c" <<'EOF'
+#include <GL/gl.h>
+extern void gl4es_glEnableClientStateIndexed(GLenum array, GLuint index);
+extern void gl4es_glDisableClientStateIndexed(GLenum array, GLuint index);
+void gl4es_glEnableClientStatei(GLenum array, GLuint index) { gl4es_glEnableClientStateIndexed(array, index); }
+void gl4es_glDisableClientStatei(GLenum array, GLuint index) { gl4es_glDisableClientStateIndexed(array, index); }
+EOF
+	mkdir -p "$out"
+	xcrun -sdk "$sdk" clang -target "$tgt" -O2 \
+		-I"$S4_PREFIX/src/gl4es/include" \
+		-c "$S4_WORK/gl4es_applefix.c" -o "$S4_WORK/gl4es_applefix-$arch.o"
+	xcrun -sdk "$sdk" ar rcs "$out/libGL4ESAppleFix.a" "$S4_WORK/gl4es_applefix-$arch.o"
+	echo "gl4es applefix ($arch) -> $out/libGL4ESAppleFix.a"
 }
 
 # build_gl4es <device|sim> — COMPILE.md iOS recipe:
