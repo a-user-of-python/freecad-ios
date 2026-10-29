@@ -1,0 +1,32 @@
+name: Spike S3 — Device IPA (Phase A1 harness)
+
+# Packages the A1 Python-embedding harness as an unsigned device IPA
+# for on-device install. Dispatch-only. Builds device arm64 only;
+# never runs the app (device evidence is a real-device run).
+
+on:
+  workflow_dispatch:
+
+jobs:
+  ipa:
+    name: S3 device IPA (unsigned)
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Maximize build space
+        run: |
+          df -h
+          sudo rm -rf /usr/share/dotnet /opt/ghc 2>/dev/null || true
+          df -h
+
+      - name: Build + package device IPA
+        run: bash Spike/S3/build-device-ipa.sh
+
+      - name: Upload device IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: spike-s3-device-ipa
+          path: dist-s3-ipa/
+          retention-days: 90
+          if-no-files-found: error
