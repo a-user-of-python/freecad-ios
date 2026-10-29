@@ -8,6 +8,10 @@ on:
       - "Scripts/build-occt.sh"
       - ".github/workflows/deps-occt.yml"
 
+concurrency:
+  group: deps-occt-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   build:
     name: iosdeps-occt tarball
