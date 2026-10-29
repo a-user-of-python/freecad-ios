@@ -347,8 +347,12 @@ if ! cfg_done 1; then
 		-DPython3_LIBRARY="$PREFIX/Python.xcframework/ios-arm64/Python.framework/Python")
 	[ -f "$IOS_SDK_PATH/usr/lib/libicucore.tbd" ] && SEEDS+=(
 		-DICU_INCLUDE_DIR="$IOS_SDK_PATH/usr/include"
+		-DICU_INCLUDE_DIRS="$IOS_SDK_PATH/usr/include"
 		-DICU_UC_LIBRARIES="$IOS_SDK_PATH/usr/lib/libicucore.tbd"
-		-DICU_I18N_LIBRARIES="$IOS_SDK_PATH/usr/lib/libicucore.tbd")
+		-DICU_I18N_LIBRARIES="$IOS_SDK_PATH/usr/lib/libicucore.tbd"
+		-DICU_UC_LIBRARY="$IOS_SDK_PATH/usr/lib/libicucore.tbd"
+		-DICU_I18N_LIBRARY="$IOS_SDK_PATH/usr/lib/libicucore.tbd"
+		-DICU_LIBRARY="$IOS_SDK_PATH/usr/lib/libicucore.tbd")
 	[ -d "$PREFIX/include/opencascade" ] && \
 		SEEDS+=(-DOCC_INCLUDE_DIR="$PREFIX/include/opencascade")
 	# bash 3.2 (macOS /bin/bash) + set -u: "${SEEDS[@]}" on an EMPTY
@@ -366,8 +370,12 @@ if ! cfg_done 1 && ! cfg_done 2 && ! qt_reached 2; then
 		-DPython3_LIBRARY="$PREFIX/Python.xcframework/ios-arm64/Python.framework/Python")
 	[ -f "$IOS_SDK_PATH/usr/lib/libicucore.tbd" ] && SEEDS3+=(
 		-DICU_INCLUDE_DIR="$IOS_SDK_PATH/usr/include"
+		-DICU_INCLUDE_DIRS="$IOS_SDK_PATH/usr/include"
 		-DICU_UC_LIBRARIES="$IOS_SDK_PATH/usr/lib/libicucore.tbd"
-		-DICU_I18N_LIBRARIES="$IOS_SDK_PATH/usr/lib/libicucore.tbd")
+		-DICU_I18N_LIBRARIES="$IOS_SDK_PATH/usr/lib/libicucore.tbd"
+		-DICU_UC_LIBRARY="$IOS_SDK_PATH/usr/lib/libicucore.tbd"
+		-DICU_I18N_LIBRARY="$IOS_SDK_PATH/usr/lib/libicucore.tbd"
+		-DICU_LIBRARY="$IOS_SDK_PATH/usr/lib/libicucore.tbd")
 	[ -d "$PREFIX/include/opencascade" ] && \
 		SEEDS3+=(-DOCC_INCLUDE_DIR="$PREFIX/include/opencascade")
 	# BUILD_BIM/FLAT_MESH/OPENSCAD OFF too: CheckInterModuleDependencies

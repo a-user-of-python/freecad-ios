@@ -184,8 +184,14 @@ def main():
     # 40957050742 produced a spurious item this way).
     battery_cfg_ok = "Configuring done" in battery_cfg
     if battery_cfg_ok and battery_bld and "error:" in battery_bld:
+        # An API counts as failed ONLY if a compiler "error:" line
+        # names it — run 40968799932 false-flagged flip/flipped
+        # because the string appeared in a deprecation WARNING for
+        # the old mirrored() fallback (proof flipped exists, the
+        # opposite of a failure).
+        error_lines = [l for l in battery_bld.splitlines() if "error:" in l]
         apis = [a for a in ("flip", "flipped", "PdfVersion_X4", "checkStateChanged")
-                if a in battery_bld]
+                if any(a in l for l in error_lines)]
         for a in apis:
             qt_api_items.append(
                 f"battery TU: Qt API '{a}' failed to compile against the kit "

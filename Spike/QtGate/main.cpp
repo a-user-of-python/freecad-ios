@@ -8,6 +8,7 @@
 #include <QOpenGLWidget>
 #include <QPagedPaintDevice>
 #include <QPrinter>
+#include <QSvgRenderer>
 #include <QSvgWidget>
 #include <QtConcurrent>
 #include <QUiLoader>
