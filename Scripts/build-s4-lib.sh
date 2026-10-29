@@ -170,7 +170,10 @@ build_glu() {
 		# Mesa GLU's libnurbs headers call assert/free without including
 		# <cassert>/<cstdlib> (desktop builds get them transitively);
 		# force-include the C headers so every TU sees them.
+		# LIBRARYBUILD: Mesa's own build define — without it mystdio.h
+		# leaves _glu_dprintf undeclared and libnurbs fails to compile.
 		xcrun -sdk "$sdk" clang++ -target "$tgt" -std=c++14 -O2 -DNDEBUG \
+			-DLIBRARYBUILD \
 			-include assert.h -include stdlib.h -include string.h \
 			"${incs[@]}" -c "$f" -o "$o"
 		n=$((n+1))
