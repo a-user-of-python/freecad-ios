@@ -23,12 +23,19 @@ mkdir -p "$WORK" "$DIST"
 echo "== Qt host-path machinery (from the installed kits):"
 grep -n "QT_HOST_PATH" "$QT_IOS/lib/cmake/Qt6/qt.toolchain.cmake" | head -20 || true
 
+# Modern CMake (4.x) fatals ("iphoneos is not an iOS SDK") when
+# CMAKE_OSX_SYSROOT is left as the SDK name; pass the resolved path.
+IOS_SDK_PATH="$(xcrun --sdk iphoneos --show-sdk-path)"
+echo "== iPhoneOS SDK: $IOS_SDK_PATH"
+test -d "$IOS_SDK_PATH"
+
 # Try the flag variants in order, FEBio-style: the first that
 # configures wins and is used for the build.
 QT_FLAGS_MODE=""
 if cmake -S "$SRC" -B "$BLD" -G Ninja \
 	-DCMAKE_TOOLCHAIN_FILE="$QT_IOS/lib/cmake/Qt6/qt.toolchain.cmake" \
 	-DQT_HOST_PATH="$QT_DESKTOP" \
+	-DCMAKE_OSX_SYSROOT="$IOS_SDK_PATH" \
 	-DCMAKE_PREFIX_PATH="$QT_IOS" \
 	-DQt6_DIR="$QT_IOS/lib/cmake/Qt6" \
 	-DCMAKE_OSX_DEPLOYMENT_TARGET=17.0 >"$WORK/logA.txt" 2>&1; then
@@ -37,6 +44,7 @@ if cmake -S "$SRC" -B "$BLD" -G Ninja \
 elif cmake -S "$SRC" -B "$BLD" -G Ninja \
 	-DCMAKE_TOOLCHAIN_FILE="$QT_IOS/lib/cmake/Qt6/qt.toolchain.cmake" \
 	-DQT_HOST_PATH="$QT_DESKTOP" \
+	-DCMAKE_OSX_SYSROOT="$IOS_SDK_PATH" \
 	-DCMAKE_OSX_DEPLOYMENT_TARGET=17.0 >"$WORK/logB.txt" 2>&1; then
 	QT_FLAGS_MODE="B"
 	echo "== smoke configure: variant B (toolchain + QT_HOST_PATH only) OK"
@@ -76,6 +84,7 @@ fi
 	echo "Qt iOS kit: $QT_IOS"
 	echo "Qt desktop (host) kit: $QT_DESKTOP"
 	echo "Configure flag variant: $QT_FLAGS_MODE"
+	echo "iOS SDK (CMAKE_OSX_SYSROOT): $IOS_SDK_PATH"
 	echo "Smoke source: Spike/S0-smoke (QApplication + QWidget, qt_add_executable)"
 	echo "Binary: $BIN"
 	echo "file: $(cat "$WORK/file.txt")"
