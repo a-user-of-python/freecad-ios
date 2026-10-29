@@ -23,14 +23,26 @@ jobs:
         run: |
           df -h
           sudo rm -rf /usr/share/dotnet /opt/ghc 2>/dev/null || true
-          for x in /Applications/Xcode_*.app; do
-            [ "$x" = "/Applications/Xcode.app" ] || sudo rm -rf "$x"
-          done 2>/dev/null || true
+          # NOTE: unlike the other workflows, deps-occt does NOT
+          # delete the versioned Xcode_*.app bundles. The pool's
+          # free space (~96 GB before this step) is ample for this
+          # stage, and on some macos-26 runners the iPhoneOS SDK
+          # lives only in a versioned Xcode — deleting them made
+          # the SDK undiscoverable (runs 40943809566 / 40944917578,
+          # "no iPhoneOS SDK found on this runner").
           rm -rf ~/Library/Developer/CoreSimulator/Profiles/Runtimes/* 2>/dev/null || true
           df -h
 
       - name: Compute content hash
         run: echo "DEPS_HASH=${{ hashFiles('PIN.md', 'Scripts/build-occt.sh') }}" >> "$GITHUB_ENV"
+
+      - name: Restore ccache
+        uses: actions/cache@v4
+        with:
+          path: .ccache
+          key: ccache-deps-occt-${{ env.DEPS_HASH }}
+          restore-keys: |
+            ccache-deps-occt-
 
       - name: Build OCCT (cascade-ios extended staging, iOS arm64)
         run: bash Scripts/build-occt.sh

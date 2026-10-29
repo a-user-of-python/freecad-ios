@@ -78,55 +78,74 @@ if [ ! -d "$RJ/include/rapidjson" ]; then
 fi
 
 # ---------------------------------------------------------- toolchain
-# iPhoneOS SDK discovery — same strategy as qt-install.inc.sh (the
-# repo's runner-pool heterogeneity fix): on some macos-26 runners
-# the xcode-select default Xcode lacks the iOS platform and
-# `xcrun --sdk iphoneos` fails outright ("SDK iphoneos cannot be
-# located" — deps-occt run 40929074102 died exactly there, at the
-# SDK lookup, before compiling anything). Trust xcrun only if it
-# returns a real directory; otherwise scan every installed Xcode
-# (xcrun retry per DEVELOPER_DIR, then a filesystem glob), export
-# DEVELOPER_DIR for the winner so all later xcrun calls agree.
-SDK="$(xcrun --sdk iphoneos --show-sdk-path 2>/dev/null || true)"
-if [ ! -d "$SDK" ]; then
-	# The maximize-space step deletes every /Applications/Xcode_*.app
-	# except Xcode.app, which can orphan xcode-select (the spike-s4
-	# workflows reset it the same way). Reset, then retry.
-	if [ -d /Applications/Xcode.app ]; then
-		sudo xcode-select -s /Applications/Xcode.app 2>/dev/null || true
+# iPhoneOS SDK discovery — the repo's runner-pool heterogeneity
+# problem, in full. Established facts from deps-occt runs:
+#  - 40929074102: xcrun fails outright ("SDK iphoneos cannot be
+#    located") — the xcode-select default is not usable as-is.
+#  - 40943809566 / 40944917578 (with reset+scan already in place):
+#    STILL no SDK — diagnostics showed xcode-select -p =
+#    /Library/Developer/CommandLineTools and only Xcode.app left
+#    in /Applications, because the workflow's maximize-space step
+#    had deleted every versioned Xcode_*.app BEFORE this script
+#    ran; on this runner class the iOS platform lives in one of
+#    the deleted apps, or is a downloadable component that was
+#    never downloaded. (deps-occt.yml no longer deletes Xcodes —
+#    the pool's 96 GB free made that step pure downside here.)
+# Strategy (mirrors qt-install.inc.sh / build-foundations.sh):
+# trust xcrun only if it returns a real directory; xcode-select
+# reset to Xcode.app + retry; filesystem scan of EVERY installed
+# Xcode with per-Xcode DEVELOPER_DIR xcrun retries and SDK globs;
+# a deep find; and, as the last resort before failing,
+# `xcodebuild -downloadPlatform iOS` (the platform is a
+# downloadable component in modern Xcode) followed by a rescan.
+find_sdk() {
+	SDK="$(xcrun --sdk iphoneos --show-sdk-path 2>/dev/null || true)"
+	if [ ! -d "$SDK" ] && [ -d /Applications/Xcode.app ]; then
+		sudo xcode-select -s /Applications/Xcode.app >/dev/null 2>&1 || true
 		SDK="$(xcrun --sdk iphoneos --show-sdk-path 2>/dev/null || true)"
 	fi
-fi
-if [ ! -d "$SDK" ]; then
-	SDK=""
-	# Glob scan (no sort -V: BSD sort cannot be trusted with it).
-	for devdir in /Applications/Xcode*.app/Contents/Developer; do
-		[ -d "$devdir" ] || continue
-		candidate="$(DEVELOPER_DIR="$devdir" xcrun --sdk iphoneos --show-sdk-path 2>/dev/null || true)"
-		if [ -d "$candidate" ]; then
-			SDK="$candidate"; DEVELOPER_DIR="$devdir"; break
-		fi
-		for sdk in "$devdir"/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS*.sdk; do
-			if [ -d "$sdk" ]; then
-				SDK="$sdk"; DEVELOPER_DIR="$devdir"; break 2
+	if [ ! -d "$SDK" ]; then
+		SDK=""
+		# Glob scan (no sort -V: BSD sort cannot be trusted with it).
+		for devdir in /Applications/Xcode*.app/Contents/Developer; do
+			[ -d "$devdir" ] || continue
+			candidate="$(DEVELOPER_DIR="$devdir" xcrun --sdk iphoneos --show-sdk-path 2>/dev/null || true)"
+			if [ -d "$candidate" ]; then
+				SDK="$candidate"; DEVELOPER_DIR="$devdir"; break
 			fi
+			for sdk in "$devdir"/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS*.sdk; do
+				if [ -d "$sdk" ]; then
+					SDK="$sdk"; DEVELOPER_DIR="$devdir"; break 2
+				fi
+			done
 		done
-	done
-fi
-if [ ! -d "$SDK" ]; then
-	# Last resort: find the SDK wherever it lives under /Applications.
-	found="$(find /Applications -maxdepth 7 -type d -name 'iPhoneOS*.sdk' 2>/dev/null | head -1)"
-	if [ -d "$found" ]; then
-		SDK="$found"
-		DEVELOPER_DIR="${found%%/Platforms/*}"
 	fi
+	if [ ! -d "$SDK" ]; then
+		# Deep find (SDK dirs sit 9 levels below /Applications).
+		found="$(find /Applications -maxdepth 10 -name 'iPhoneOS*.sdk' 2>/dev/null | head -1)"
+		if [ -d "$found" ]; then
+			SDK="$found"
+			DEVELOPER_DIR="${found%%/Platforms/*}"
+		fi
+	fi
+	[ -d "$SDK" ]
+}
+if ! find_sdk; then
+	echo "== no iPhoneOS SDK discovered; trying xcodebuild -downloadPlatform iOS"
+	xcodebuild -downloadPlatform iOS || true
+	find_sdk || true
 fi
 if [ ! -d "$SDK" ]; then
 	echo "ERROR: no iPhoneOS SDK found on this runner. Diagnostics:" >&2
 	echo "  xcode-select -p: $(xcode-select -p 2>&1 || true)" >&2
 	echo "  DEVELOPER_DIR env: ${DEVELOPER_DIR:-<unset>}" >&2
 	ls /Applications >&2 || true
-	find /Applications -maxdepth 7 -type d -name '*.sdk' 2>/dev/null >&2 || true
+	xcodebuild -showsdks >&2 2>&1 || true
+	for app in /Applications/Xcode*.app; do
+		echo "  $app platforms:" >&2
+		ls "$app/Contents/Developer/Platforms/" >&2 2>&1 || true
+		ls "$app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/" >&2 2>&1 || true
+	done
 	exit 1
 fi
 export DEVELOPER_DIR
@@ -134,6 +153,18 @@ CLANG="$(xcrun --find clang)"; CLANGXX="$(xcrun --find clang++)"
 TARGET="arm64-apple-ios17.0"
 NCPU="$(sysctl -n hw.ncpu)"
 echo "== iOS SDK: $SDK (DEVELOPER_DIR=${DEVELOPER_DIR:-default}, target $TARGET, -j$NCPU)"
+
+# ccache (Front-6 CI audit recommendation): 35 toolkits is the
+# fattest compile in the deps layer; the workflow persists
+# $ROOT/.ccache via actions/cache so re-runs are warm.
+CCACHE=""
+if command -v ccache >/dev/null 2>&1 || brew install ccache >/dev/null 2>&1; then
+	CCACHE="ccache"
+	export CCACHE_DIR="$ROOT/.ccache" CCACHE_MAXSIZE="5G"
+	mkdir -p "$CCACHE_DIR"
+	echo "== ccache enabled ($CCACHE_DIR)"
+	ccache --zero-stats >/dev/null 2>&1 || true
+fi
 
 # Header search paths: every package directory of the staging tree
 # (cascade's mechanism) + the generated-headers dir.
@@ -152,8 +183,8 @@ cat > "$WORK/compile_one.sh" <<EOF
 # args: <src> <obj>
 f="\$1"; o="\$2"
 case "\$f" in
-	*.c) exec $CLANG ${CFLAGS[*]} ${DEFS[*]} ${INCS[*]} -c "\$f" -o "\$o" ;;
-	*)   exec $CLANGXX ${CXXFLAGS[*]} ${DEFS[*]} ${INCS[*]} -c "\$f" -o "\$o" ;;
+	*.c) exec $CCACHE $CLANG ${CFLAGS[*]} ${DEFS[*]} ${INCS[*]} -c "\$f" -o "\$o" ;;
+	*)   exec $CCACHE $CLANGXX ${CXXFLAGS[*]} ${DEFS[*]} ${INCS[*]} -c "\$f" -o "\$o" ;;
 esac
 EOF
 chmod +x "$WORK/compile_one.sh"
