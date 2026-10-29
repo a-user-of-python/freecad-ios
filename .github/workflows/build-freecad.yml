@@ -21,6 +21,7 @@ jobs:
   smoke:
     name: S0 toolchain smoke
     runs-on: macos-26
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
 
@@ -47,6 +48,7 @@ jobs:
     runs-on: macos-26
     env:
       CCACHE_DIR: ${{ github.workspace }}/.ccache
+      CCACHE_MAXSIZE: 4G
     steps:
       - uses: actions/checkout@v4
 
@@ -57,6 +59,7 @@ jobs:
           for x in /Applications/Xcode_*.app; do
             [ "$x" = "/Applications/Xcode.app" ] || sudo rm -rf "$x"
           done 2>/dev/null || true
+          sudo xcode-select -s /Applications/Xcode.app 2>/dev/null || true
           rm -rf ~/Library/Developer/CoreSimulator/Profiles/Runtimes/* 2>/dev/null || true
           df -h
 
@@ -64,8 +67,10 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ env.CCACHE_DIR }}
-          key: build-freecad-ccache-${{ hashFiles('PIN.md') }}
+          key: build-freecad-ccache-core-${{ hashFiles('PIN.md', 'Scripts/build-freecad.sh') }}-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: |
+            build-freecad-ccache-core-${{ hashFiles('PIN.md', 'Scripts/build-freecad.sh') }}-
+            build-freecad-ccache-core-
             build-freecad-ccache-
 
       - name: Download dependency tarballs
@@ -93,6 +98,7 @@ jobs:
     runs-on: macos-26
     env:
       CCACHE_DIR: ${{ github.workspace }}/.ccache
+      CCACHE_MAXSIZE: 4G
     steps:
       - uses: actions/checkout@v4
 
@@ -103,6 +109,7 @@ jobs:
           for x in /Applications/Xcode_*.app; do
             [ "$x" = "/Applications/Xcode.app" ] || sudo rm -rf "$x"
           done 2>/dev/null || true
+          sudo xcode-select -s /Applications/Xcode.app 2>/dev/null || true
           rm -rf ~/Library/Developer/CoreSimulator/Profiles/Runtimes/* 2>/dev/null || true
           df -h
 
@@ -110,8 +117,11 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ env.CCACHE_DIR }}
-          key: build-freecad-ccache-${{ hashFiles('PIN.md') }}
+          key: build-freecad-ccache-workbench-${{ hashFiles('PIN.md', 'Scripts/build-freecad.sh') }}-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: |
+            build-freecad-ccache-workbench-${{ hashFiles('PIN.md', 'Scripts/build-freecad.sh') }}-
+            build-freecad-ccache-workbench-
+            build-freecad-ccache-core-
             build-freecad-ccache-
 
       - name: Download core artifact
@@ -119,7 +129,6 @@ jobs:
         with:
           name: freecad-core-${{ hashFiles('PIN.md', 'Scripts/build-freecad.sh') }}
           path: dist-core-in
-        continue-on-error: true
 
       - name: Download dependency tarballs
         uses: actions/download-artifact@v4
