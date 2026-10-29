@@ -51,6 +51,7 @@ DEP_PATTERNS = [
     (r"Matplotlib|matplotlib", "Matplotlib (python runtime check)"),
 ]
 CONFIG_PATTERNS = [
+    (r"Zstandard support not compiled in|compress-algo", "host rcc (Qt 6.9.3 official kit) has no compiled-in zstd, but FreeCAD's FREECAD_RCC_OPTIONS default to zstd — remedy is FreeCAD's own cache var FREECAD_RCC_COMPRESSION_ALGO=zlib (SetupQt.cmake exposes zstd/zlib/none)"),
     (r"iphoneos is not an iOS SDK|SDK.*cannot be located|No iOS SDK", "iPhoneOS SDK resolution on the runner (CMake 4.x validates qt.toolchain's name-based sysroot via xcrun; SDK-bearing Xcode must not be deleted by the maximize step)"),
     (r"GLU|OpenGL|GLESv2|\bEGL\b", "OpenGL/GLU/GLES: iOS SDK resolution + gl4es companion GLU (S4) or a probe seed; SetupOpenGL.cmake fatals pre-Qt"),
     (r"try_run|TRY_RUN|Check.*does not|check_cxx|test.*failed", "try-run / feature introspection under cross-compile — seed or disable, feedstock-style"),
@@ -136,11 +137,14 @@ def main():
                     and "BATTERY-RESULT: PASS" in read("battery-result.txt"))
     qt_version = read("qt-version.txt").strip()
 
+    rcc_probe = read("rcc-zstd-probe.log")
     attempts = {}
     for n in (1, 2, 3):
         log = read(f"configure-attempt{n}.log")
         if log:
             attempts[n] = log
+    if rcc_probe:
+        attempts["rcc-zstd"] = rcc_probe
     any_complete = any("Generating done" in l for l in attempts.values())
     qt_stage_pass = [n for n, l in attempts.items()
                      if "Set up to compile with Qt" in l]

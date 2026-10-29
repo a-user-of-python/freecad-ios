@@ -214,6 +214,27 @@ if ! find "$PREFIX" -name 'fmt-config.cmake' -o -name 'fmtConfig.cmake' 2>/dev/n
 		&& cmake --install "$WORK/build-fmt" >> "$DIST/fmt-build.log" 2>&1 \
 		&& echo "   fmt installed" || echo "   fmt build FAILED (see fmt-build.log; configure will classify)"
 fi
+# yaml-cpp: same probe-local fill logic as fmt (foundations stages
+# it, but foundations has not landed; SetupYamlCpp is the pinned
+# configure's THIRD setup call, so filling it buys real depth —
+# the next stops are then fmt (filled), ICU, Python (landed)).
+if ! find "$PREFIX" -iname 'yaml-cpp-config.cmake' -o -iname 'yaml-cppConfig.cmake' 2>/dev/null | grep -q .; then
+	echo "== probe-local fill: building yaml-cpp 0.8.0 into the prefix ([DEP] remediation)"
+	YAMLD="$WORK/yaml-cpp-0.8.0"
+	if [ ! -d "$YAMLD" ]; then
+		curl -fsSL --retry 3 -o "$WORK/yaml.tar.gz" \
+			"https://github.com/jbeder/yaml-cpp/archive/refs/tags/0.8.0.tar.gz"
+		mkdir -p "$WORK/yamlsrc"; tar -xzf "$WORK/yaml.tar.gz" -C "$WORK/yamlsrc" --strip-components=1
+		mv "$WORK/yamlsrc" "$YAMLD"
+	fi
+	cmake -S "$YAMLD" -B "$WORK/build-yaml" -G Ninja "${COMMON[@]}" \
+		-DCMAKE_INSTALL_PREFIX="$PREFIX" -DYAML_CPP_BUILD_TESTS=OFF \
+		-DYAML_CPP_BUILD_TOOLS=OFF -DYAML_CPP_BUILD_CONTRIB=OFF \
+		-DYAML_BUILD_SHARED_LIBS=OFF > "$DIST/yaml-build.log" 2>&1 \
+		&& cmake --build "$WORK/build-yaml" -j"$(sysctl -n hw.ncpu)" >> "$DIST/yaml-build.log" 2>&1 \
+		&& cmake --install "$WORK/build-yaml" >> "$DIST/yaml-build.log" 2>&1 \
+		&& echo "   yaml-cpp installed" || echo "   yaml-cpp build FAILED (see yaml-build.log; configure will classify)"
+fi
 # OpenCASCADE config shim: real OCCT installs ship OpenCASCADEConfig.
 # cmake; our S2 staging ships headers+libs only. Generate the config
 # from the archives actually present — a [CONFIG] shim, labelled.
@@ -242,6 +263,21 @@ xcrun clang -target arm64-apple-ios17.0 ${SYSROOT_FLAG[@]+"${SYSROOT_FLAG[@]}"} 
 	clang -c "$WORK/glstub/empty.c" -o "$WORK/glstub/empty.o"
 ar rcs "$WORK/glstub/libGL.a" "$WORK/glstub/empty.o"
 ar rcs "$WORK/glstub/libGLU.a" "$WORK/glstub/empty.o"
+
+# Direct host-rcc probe of FreeCAD's EXACT FREECAD_RCC_OPTIONS
+# (zstd/19/70), non-fatal: run 40962937748 showed the official
+# 6.9.3 host rcc lacks compiled-in zstd. Recorded for the
+# classifier as a [CONFIG] item (remedy: FREECAD_RCC_COMPRESSION_ALGO
+# =zlib, FreeCAD's own cache variable).
+RCC_BIN="$(find "$QT_DESKTOP" -name rcc -type f 2>/dev/null | head -1)"
+{
+	echo "host rcc: $RCC_BIN"
+	"$RCC_BIN" --compress-algo zstd --compress 19 --threshold 70 \
+		--name qtgate_res_probe -o "$WORK/rcc-probe-out.cpp" \
+		"$ROOT/Spike/QtGate/res.qrc" 2>&1
+	echo "rcc exit: $?"
+} > "$DIST/rcc-zstd-probe.log" 2>&1 || true
+cat "$DIST/rcc-zstd-probe.log"
 
 # ---------------------------------------------------------- 4. battery
 echo "== battery: Spike/QtGate against the iOS kit"
@@ -334,8 +370,11 @@ if ! cfg_done 1 && ! cfg_done 2 && ! qt_reached 2; then
 		-DICU_I18N_LIBRARIES="$IOS_SDK_PATH/usr/lib/libicucore.tbd")
 	[ -d "$PREFIX/include/opencascade" ] && \
 		SEEDS3+=(-DOCC_INCLUDE_DIR="$PREFIX/include/opencascade")
+	# BUILD_BIM/FLAT_MESH/OPENSCAD OFF too: CheckInterModuleDependencies
+	# requires MESH_PART for them (run 40962937748 attempt-3 noise).
 	run_attempt 3 ${SEEDS3[@]+"${SEEDS3[@]}"} \
 		-DBUILD_FEM=OFF -DBUILD_MESH_PART=OFF -DBUILD_FEM_NETGEN=OFF \
+		-DBUILD_BIM=OFF -DBUILD_FLAT_MESH=OFF -DBUILD_OPENSCAD=OFF \
 		-DOPENGL_INCLUDE_DIR="$IOS_SDK_PATH/usr/include" \
 		-DOPENGL_gl_LIBRARY="$WORK/glstub/libGL.a" \
 		-DOPENGL_glu_LIBRARY="$WORK/glstub/libGLU.a"

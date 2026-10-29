@@ -49,11 +49,18 @@ message(STATUS "QTGATE: all REQUIRED SetupQt components found")
 
 # FreeCAD's rcc options (SetupQt.cmake FREECAD_RCC_OPTIONS), passed
 # exactly the way src/Gui/CMakeLists.txt passes them — the variable
-# form of qt_add_resources with OPTIONS: the host rcc from
-# QT_HOST_PATH must accept the zstd algorithm + level 19.
+# form of qt_add_resources with OPTIONS. RUN 40962937748 FINDING:
+# FreeCAD's default algorithm is zstd, but the official Qt 6.9.3
+# host rcc answers "Zstandard support not compiled in" (its
+# --compress-algo accepts only [zlib], none) — a [CONFIG] item whose
+# remedy is FreeCAD's own cache variable
+# FREECAD_RCC_COMPRESSION_ALGO=zlib, NOT a Qt-API gap. The probe
+# script exercises the zstd form directly (rcc-zstd-probe.log,
+# non-fatal); this battery uses zlib so the version-branch TU below
+# actually compiles and links.
 qt_add_resources(QTGATE_RES_SRCS res.qrc
-    OPTIONS --compress-algo zstd --compress 19 --threshold 70)
-message(STATUS "QTGATE: rcc zstd resource step configured")
+    OPTIONS --compress-algo zlib --compress 19 --threshold 70)
+message(STATUS "QTGATE: rcc resource step configured (zlib; zstd probed separately)")
 
 qt_add_executable(qtgate_battery main.cpp widget.ui ${QTGATE_RES_SRCS})
 target_link_libraries(qtgate_battery PRIVATE

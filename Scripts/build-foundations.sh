@@ -167,8 +167,25 @@ echo "   OK (Eigen 3.4 headers in include/eigen3)"
 # CMake superproject route ONLY (never b2). Compiled libs only:
 # program_options, regex, thread, date_time (+ their CMake-resolved
 # dependencies, which BOOST_INCLUDE_LIBRARIES pulls in automatically).
-fetch "https://archives.boost.io/release/1.88.0/source/boost_1_88_0.tar.gz" "boost_1_88_0"
-build_cmake "boost" "$SRCDIR/boost_1_88_0" \
+#
+# SOURCE TRUTH (verified 2026-10-29 by direct download + tar listing):
+# the archives.boost.io release tarball (boost_1_88_0.tar.gz,
+# 168,473,737 B, sha256 3621533e820dcab1e8012afd583c0c73cf0f7769495
+# 2b81352bf38c1488f9cb4) is the b2-layout archive: its root contains
+# Jamroot / boost-build.jam / bootstrap.sh and NO CMakeLists.txt —
+# CMakeLists.txt exists only under libs/<lib>/. Configuring it as a
+# superproject therefore always fails with "source directory ...
+# does not appear to contain CMakeLists.txt" (run 40944904578).
+# The superproject CMakeLists.txt ships in the SEPARATE CMake release
+# asset on GitHub: boost-1.88.0-cmake.tar.gz (132,402,054 B, sha256
+# dcea50f40ba1ecfc448fdf886c0165cf3e525fef2c9e3e080b9804e8117b9694,
+# top dir boost-1.88.0/, root CMakeLists.txt present, libs'
+# program_options/regex/thread/date_time sources + CMakeLists all
+# present — same verified tar listing). Use that asset.
+fetch "https://github.com/boostorg/boost/releases/download/boost-1.88.0/boost-1.88.0-cmake.tar.gz" "boost-1.88.0"
+test -f "$SRCDIR/boost-1.88.0/CMakeLists.txt" || { echo "ERROR: Boost -cmake tarball layout changed: no root CMakeLists.txt in boost-1.88.0/" >&2; exit 1; }
+grep -q "project(Boost VERSION 1.88.0" "$SRCDIR/boost-1.88.0/CMakeLists.txt" || { echo "ERROR: Boost root CMakeLists.txt is not 1.88.0" >&2; exit 1; }
+build_cmake "boost" "$SRCDIR/boost-1.88.0" \
 	-DBOOST_INCLUDE_LIBRARIES="program_options;regex;thread;date_time" \
 	-DBOOST_ENABLE_CMAKE=ON
 verify_lib "boost-program_options" "lib/libboost_program_options.a" "program_options"
