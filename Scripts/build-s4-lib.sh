@@ -253,6 +253,16 @@ build_coin() {
 		cp "$S4_WORK/coin-$arch-configure.log" "$S4_ROOT/dist-s4/" 2>/dev/null || true
 		exit 1
 	fi
+	# Build-configuration adjustment (Coin SOURCE stays untouched):
+	# Coin's CMake sets COIN_MACOS_10/COIN_MACOS_10_3 for ANY Apple OS,
+	# which turns on macOS-only code (ApplicationServices offscreen-CG
+	# path, CGL, CFBundle framework lookup) that does not exist on iOS.
+	# Undefine them in the GENERATED build-tree config.h only.
+	local cfg
+	cfg="$(find "$S4_WORK/coin-$arch" -name config.h | head -1)"
+	echo "adjusting generated config.h for iOS: $cfg"
+	sed -i '' -E 's|^#define COIN_MACOS_10(_3)?( .*)?$|/* iOS build-config: COIN_MACOS_10 undef (was: &) */|' "$cfg"
+	grep -n "COIN_MACOS_10" "$cfg" | head -4 || true
 	cmake --build "$S4_WORK/coin-$arch" -j3
 	cmake --install "$S4_WORK/coin-$arch"
 	find "$out" -name '*Coin*' | head
