@@ -42,6 +42,10 @@ file(GLOB_RECURSE QUARTER_HEADERS "${QUARTER_DIR}/*.h")
 
 add_library(Quarter STATIC ${QUARTER_SOURCES} ${QUARTER_HEADERS})
 target_compile_definitions(Quarter PRIVATE QUARTER_INTERNAL)
+# QuarterWidget.cpp tests GL_MULTISAMPLE through QOpenGLFunctions; the
+# enum is absent from the GLES2 headers Qt maps to on iOS. gl4es (and
+# GLES3) define it as 0x809D — supply the identical value.
+target_compile_definitions(Quarter PRIVATE GL_MULTISAMPLE=0x809D)
 target_include_directories(Quarter PUBLIC
   "${CMAKE_CURRENT_SOURCE_DIR}/fcshim"  # FIRST: Base/* + FCConfig.h spike shims win over FreeCAD's real Base headers
   "${FREECAD_SRC_DIR}/src"          # for <Gui/Quarter/...> includes
