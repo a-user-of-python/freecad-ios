@@ -10,7 +10,7 @@ and the patch series.
 |---|---|---|
 | S0 | Toolchain smoke: Qt 6.9.3 dual-kit aqtinstall + Widgets smoke app (FEBio recipe) | not started |
 | S1 | Foundations: zlib → FreeType → HarfBuzz → yaml-cpp → Xerces-C → Eigen → Boost (compiled libs only) | not started |
-| S2 | OCCT extension: census `${OCC_LIBRARIES}` vs cascade-ios 23 toolkits → extend staging to the full set; MetalCAD non-regression | census in progress |
+| S2 | OCCT extension: census `${OCC_LIBRARIES}` vs cascade-ios 23 toolkits → extend staging to the full set; MetalCAD non-regression | **census DONE (configured, triple-verified)** — work order = 12 toolkits: TKHLR, TKFeat, TKExpress, TKDEIGES, TKDEGLTF, TKDESTL, TKBin, TKBinL, TKVCAF, TKMeshVS, TKV3d, TKRWMesh → target tree 35. TKXml/TKDEVRML are NOT required (front 01/synthesis expectation corrected by the census). Extension in progress |
 | S3 | Python spike (BeeWare 3.13 XCFramework + App/Part stack: TestPartApp, STEP round-trip, PartDesign recompute) | gated on S3/S4 report before Stage 7 |
 | S4 | Graphics spike: gl4es + Coin 4.0.10 + vendored QuarterWidget (Tiers 0–1 first) | gated on S3/S4 report before Stage 7 |
 | S5 | Data layer: HDF5 → SMESH (bundled copy) | not started |
