@@ -172,10 +172,19 @@ build_glu() {
 		# force-include the C headers so every TU sees them.
 		# LIBRARYBUILD: Mesa's own build define — without it mystdio.h
 		# leaves _glu_dprintf undeclared and libnurbs fails to compile.
-		xcrun -sdk "$sdk" clang++ -target "$tgt" -std=c++14 -O2 -DNDEBUG \
-			-DLIBRARYBUILD \
-			-include assert.h -include stdlib.h -include string.h \
-			"${incs[@]}" -c "$f" -o "$o"
+		# Compile each file in its own language: .c as C (mipmap.c uses
+		# C-only void* conversions that are hard errors in C++).
+		if [ "${f##*.}" = "c" ]; then
+			xcrun -sdk "$sdk" clang -target "$tgt" -std=gnu11 -O2 -DNDEBUG \
+				-DLIBRARYBUILD \
+				-include assert.h -include stdlib.h -include string.h \
+				"${incs[@]}" -c "$f" -o "$o"
+		else
+			xcrun -sdk "$sdk" clang++ -target "$tgt" -std=c++14 -O2 -DNDEBUG \
+				-DLIBRARYBUILD \
+				-include assert.h -include stdlib.h -include string.h \
+				"${incs[@]}" -c "$f" -o "$o"
+		fi
 		n=$((n+1))
 	done < <(find "$GLU_SRC/src" -name '*.cc' -o -name '*.c' | grep -v -i 'mesa' || true)
 	echo "   GLU objects: $n"
