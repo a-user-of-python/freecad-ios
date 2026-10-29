@@ -1,0 +1,65 @@
+name: Spike S4 — graphics (gl4es / Coin / Quarter)
+
+# Synthesis §3 S4, Tiers 0-1. Standard macos-26 runners ONLY.
+# NOTE: unlike the deps workflows, this one must NOT delete simulator
+# runtimes — the tier evidence is a live iOS Simulator run.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  tier0:
+    name: S4 Tier 0 — gl4es triangle on Qt EAGL context
+    runs-on: macos-26
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Maximize build space (keep simulator runtimes)
+        run: |
+          df -h
+          sudo rm -rf /usr/share/dotnet /opt/ghc 2>/dev/null || true
+          for x in /Applications/Xcode_*.app; do
+            [ "$x" = "/Applications/Xcode.app" ] || sudo rm -rf "$x"
+          done 2>/dev/null || true
+          df -h
+          xcrun simctl list devices available | head -30
+
+      - name: Build + simulator-run Tier 0
+        run: bash Scripts/build-s4-tier0.sh
+
+      - name: Upload Tier 0 evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: s4-tier0-evidence
+          path: dist-s4/tier0/
+          retention-days: 90
+          if-no-files-found: warn
+
+  tier1:
+    name: S4 Tier 1 — Coin + QuarterWidget HelloCone
+    runs-on: macos-26
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Maximize build space (keep simulator runtimes)
+        run: |
+          df -h
+          sudo rm -rf /usr/share/dotnet /opt/ghc 2>/dev/null || true
+          for x in /Applications/Xcode_*.app; do
+            [ "$x" = "/Applications/Xcode.app" ] || sudo rm -rf "$x"
+          done 2>/dev/null || true
+          df -h
+          xcrun simctl list devices available | head -30
+
+      - name: Build + simulator-run Tier 1
+        run: bash Scripts/build-s4-tier1.sh
+
+      - name: Upload Tier 1 evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: s4-tier1-evidence
+          path: dist-s4/tier1/
+          retention-days: 90
+          if-no-files-found: warn

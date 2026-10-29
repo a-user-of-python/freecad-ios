@@ -1,0 +1,264 @@
+#!/bin/bash
+# Spike S4 — shared build helpers (sourced by build-s4-tier0.sh /
+# build-s4-tier1.sh). Everything here runs on the macos-26 CI runner.
+# Conventions follow the FEBio Studio iOS script: aqtinstall Qt 6.9.3
+# dual kit with 6.8.3 fallback, host kit discovered from Qt6Config.cmake
+# rather than assumed, ninja for app builds.
+set -euo pipefail
+
+S4_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+S4_WORK="$S4_ROOT/build/s4"
+S4_PREFIX="$S4_WORK/prefix"
+S4_SRC="$S4_WORK/src"
+mkdir -p "$S4_WORK" "$S4_PREFIX" "$S4_SRC"
+
+QT_VERSION_USED=""
+
+install_qt() {
+	if [ -n "$QT_VERSION_USED" ]; then return 0; fi
+	echo "== installing Qt (aqtinstall)"
+	python3 -m pip install --quiet --break-system-packages aqtinstall
+	local QT_ROOT="$S4_WORK/Qt"
+	for v in 6.9.3 6.8.3; do
+		echo "-- trying Qt $v"
+		if python3 -m aqt install-qt mac desktop "$v" clang_64 -O "$QT_ROOT" --modules qtshadertools 2>/dev/null \
+		   && python3 -m aqt install-qt mac ios "$v" ios -O "$QT_ROOT" --modules qtshadertools 2>/dev/null; then
+			QT_VERSION_USED="$v"; break
+		fi
+		echo "-- Qt $v install failed, trying next candidate"
+	done
+	[ -n "$QT_VERSION_USED" ] || { echo "ERROR: no Qt kit installed" >&2; exit 1; }
+	QT_IOS="$QT_ROOT/$QT_VERSION_USED/ios"
+	QT_DESKTOP=""
+	for cfg in "$QT_ROOT/$QT_VERSION_USED"/*/lib/cmake/Qt6/Qt6Config.cmake; do
+		case "$cfg" in
+			"$QT_IOS"/*) ;;
+			*) QT_DESKTOP="$(dirname "$(dirname "$(dirname "$(dirname "$cfg")")")")" ;;
+		esac
+	done
+	echo "== Qt $QT_VERSION_USED ready (host: $QT_DESKTOP, ios: $QT_IOS)"
+	test -n "$QT_DESKTOP"
+	test -f "$QT_IOS/lib/cmake/Qt6/qt.toolchain.cmake"
+	command -v ninja >/dev/null || brew install ninja
+	export QT_IOS QT_DESKTOP QT_VERSION_USED
+}
+
+fetch_gl4es() {
+	if [ ! -d "$S4_SRC/gl4es" ]; then
+		echo "== fetching gl4es (ptitSeb/gl4es, depth-1 clone of default branch)"
+		git clone --depth 1 https://github.com/ptitSeb/gl4es "$S4_SRC/gl4es"
+	fi
+	if [ ! -f "$S4_SRC/ios-cmake/ios.toolchain.cmake" ]; then
+		echo "== fetching ios-cmake (leetal/ios-cmake)"
+		git clone --depth 1 https://github.com/leetal/ios-cmake "$S4_SRC/ios-cmake"
+	fi
+	git -C "$S4_SRC/gl4es" rev-parse HEAD | sed 's/^/gl4es HEAD: /' || true
+}
+
+# build_gl4es <device|sim> — COMPILE.md iOS recipe:
+#   cmake -G Xcode -DCMAKE_TOOLCHAIN_FILE=ios.toolchain.cmake
+#         -DNOX11=ON -DNOEGL=ON -DSTATICLIB=ON -DPLATFORM=OS, target GL
+# Current ios-cmake names the device platform OS64 (OS is its legacy
+# alias) and the Apple-Silicon simulator SIMULATORARM64; DEFAULT_ES=2
+# selects the GLES2 backend (COMPILE.md "Custom build" note).
+build_gl4es() {
+	local arch="$1" plat sdk
+	if [ "$arch" = device ]; then plat=OS64; sdk=iphoneos; else plat=SIMULATORARM64; sdk=iphonesimulator; fi
+	local out="$S4_PREFIX/$arch/lib"
+	if [ -f "$out/libGL.a" ]; then echo "== gl4es ($arch) already built"; return 0; fi
+	echo "== building gl4es ($arch, PLATFORM=$plat, NOX11/NOEGL/STATICLIB, DEFAULT_ES=2)"
+	rm -rf "$S4_WORK/gl4es-$arch"
+	cmake -S "$S4_SRC/gl4es" -B "$S4_WORK/gl4es-$arch" -G Xcode \
+		-DCMAKE_TOOLCHAIN_FILE="$S4_SRC/ios-cmake/ios.toolchain.cmake" \
+		-DPLATFORM="$plat" -DDEPLOYMENT_TARGET=17.0 \
+		-DNOX11=ON -DNOEGL=ON -DSTATICLIB=ON -DDEFAULT_ES=2 \
+		-DCMAKE_BUILD_TYPE=Release
+	cmake --build "$S4_WORK/gl4es-$arch" --config Release --target GL
+	local lib
+	lib="$(find "$S4_WORK/gl4es-$arch" -name 'libGL.a' | head -1)"
+	[ -n "$lib" ] || { echo "ERROR: libGL.a not produced for $arch" >&2; find "$S4_WORK/gl4es-$arch" -name '*.a' >&2; exit 1; }
+	mkdir -p "$out"
+	cp "$lib" "$out/libGL.a"
+	lipo -info "$out/libGL.a"
+	# headers: the app/coin/glu compiles use the gl4es source include dir
+	mkdir -p "$S4_PREFIX/src"
+	ln -sfn "$S4_SRC/gl4es" "$S4_PREFIX/src/gl4es"
+	echo "gl4es $arch -> $out/libGL.a (sdk $sdk)"
+}
+
+# build_glu <device|sim> — companion GLU for Coin: Mesa GLU 9.0.3
+# (the SGI reference GLU; gl4es README: "Standard GLU does work").
+# Built by direct compilation of its libutil/libtess/libnurbs sources
+# against gl4es headers — no autotools/meson cross fight.
+build_glu() {
+	local arch="$1" sdk tgt
+	if [ "$arch" = device ]; then sdk=iphoneos; tgt="arm64-apple-ios17.0"; else sdk=iphonesimulator; tgt="arm64-apple-ios17.0-simulator"; fi
+	local out="$S4_PREFIX/$arch/lib"
+	if [ -f "$out/libGLU.a" ]; then echo "== GLU ($arch) already built"; return 0; fi
+	if [ ! -d "$S4_SRC/glu-9.0.3" ]; then
+		echo "== fetching Mesa GLU 9.0.3"
+		curl -sfL -o "$S4_WORK/glu.tar.xz" "https://archive.mesa3d.org/glu/glu-9.0.3.tar.xz" \
+			|| curl -sfL -o "$S4_WORK/glu.tar.xz" "https://archive.mesa3d.org/glu/glu-9.0.2.tar.xz"
+		tar -xf "$S4_WORK/glu.tar.xz" -C "$S4_SRC"
+		ls -d "$S4_SRC"/glu-* | head -1
+	fi
+	local GLU_SRC
+	GLU_SRC="$(ls -d "$S4_SRC"/glu-* | head -1)"
+	echo "== compiling GLU ($arch) from $GLU_SRC"
+	local objdir="$S4_WORK/glu-obj-$arch"
+	rm -rf "$objdir"; mkdir -p "$objdir"
+	local incs=(-I"$GLU_SRC/include" -I"$S4_PREFIX/src/gl4es/include")
+	local d
+	for d in $(find "$GLU_SRC/src" -type d); do incs+=(-I"$d"); done
+	local n=0
+	while IFS= read -r f; do
+		local o="$objdir/$(echo "$f" | tr '/' '_').o"
+		xcrun -sdk "$sdk" clang++ -target "$tgt" -std=c++14 -O2 -DNDEBUG \
+			"${incs[@]}" -c "$f" -o "$o"
+		n=$((n+1))
+	done < <(find "$GLU_SRC/src" -name '*.cc' -o -name '*.c' | grep -v -i 'mesa' || true)
+	echo "   GLU objects: $n"
+	mkdir -p "$out"
+	xcrun -sdk "$sdk" ar rcs "$out/libGLU.a" "$objdir"/*.o
+	# glu.h where Coin expects it (GL/glu.h next to gl4es's GL/gl.h):
+	mkdir -p "$S4_PREFIX/src/glu-include/GL"
+	cp "$GLU_SRC/include/GL/glu.h" "$S4_PREFIX/src/glu-include/GL/glu.h"
+	lipo -info "$out/libGLU.a"
+}
+
+# resolve + fetch unmodified Coin 4.0.10 release tarball from the
+# coin3d GitHub org. Asset chosen from the release's own asset list
+# via the GitHub API (no guessed asset filename).
+fetch_coin() {
+	if [ -d "$S4_SRC/coin-4.0.10" ]; then return 0; fi
+	echo "== resolving Coin 4.0.10 release assets (coin3d/coin)"
+	local url
+	url="$(python3 - <<'PY'
+import json, urllib.request
+req = urllib.request.Request("https://api.github.com/repos/coin3d/coin/releases/tags/v4.0.10",
+                             headers={"Accept": "application/vnd.github+json", "User-Agent": "s4-spike"})
+rel = json.load(urllib.request.urlopen(req, timeout=60))
+cands = [a["browser_download_url"] for a in rel.get("assets", [])
+         if a["name"].lower().endswith(".tar.gz")]
+print(cands[0] if cands else "")
+for a in rel.get("assets", []):
+    print("ASSET:", a["name"], file=__import__("sys").stderr)
+PY
+)"
+	echo "coin asset url: $url"
+	[ -n "$url" ] || { echo "ERROR: no .tar.gz asset on coin v4.0.10 release" >&2; exit 1; }
+	curl -sfL -o "$S4_WORK/coin.tar.gz" "$url"
+	tar -xzf "$S4_WORK/coin.tar.gz" -C "$S4_SRC"
+	ls -d "$S4_SRC"/*oin* 2>/dev/null || true
+	# normalise the extracted dir name to coin-4.0.10
+	local d
+	d="$(find "$S4_SRC" -maxdepth 1 -type d -iname '*coin*' | head -1)"
+	[ -n "$d" ] || { echo "ERROR: coin source dir not found after extract" >&2; exit 1; }
+	[ "$d" = "$S4_SRC/coin-4.0.10" ] || mv "$d" "$S4_SRC/coin-4.0.10"
+	grep -m1 -rn "4.0.10" "$S4_SRC/coin-4.0.10/CMakeLists.txt" | head -1 || true
+}
+
+# build_coin <device|sim> — unmodified Coin against gl4es + GLU.
+build_coin() {
+	local arch="$1" plat
+	if [ "$arch" = device ]; then plat=OS64; else plat=SIMULATORARM64; fi
+	local out="$S4_PREFIX/$arch"
+	if [ -f "$out/lib/libCoin.a" ]; then echo "== Coin ($arch) already built"; return 0; fi
+	echo "== building Coin 4.0.10 ($arch) against gl4es"
+	rm -rf "$S4_WORK/coin-$arch"
+	set +e
+	cmake -S "$S4_SRC/coin-4.0.10" -B "$S4_WORK/coin-$arch" -G Ninja \
+		-DCMAKE_TOOLCHAIN_FILE="$S4_SRC/ios-cmake/ios.toolchain.cmake" \
+		-DPLATFORM="$plat" -DDEPLOYMENT_TARGET=17.0 \
+		-DCMAKE_BUILD_TYPE=Release \
+		-DCMAKE_INSTALL_PREFIX="$out" \
+		-DCOIN_BUILD_DOCUMENTATION=OFF -DCOIN_BUILD_TESTS=OFF \
+		-DCOIN_BUILD_EXAMPLES=OFF -DCOIN_BUILD_SHARED_LIBS=OFF \
+		-DCOIN_USE_QT=OFF \
+		-DOPENGL_INCLUDE_DIR="$S4_PREFIX/src/gl4es/include" \
+		-DOPENGL_gl_LIBRARY="$out/lib/libGL.a" \
+		-DOPENGL_glu_LIBRARY="$out/lib/libGLU.a" \
+		-DGLU_INCLUDE_DIR="$S4_PREFIX/src/glu-include" \
+		-DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=BOTH \
+		-DCMAKE_FIND_ROOT_PATH_MODE_LIBRARY=BOTH \
+		-DCMAKE_FIND_ROOT_PATH_MODE_INCLUDE=BOTH \
+		> "$S4_WORK/coin-$arch-configure.log" 2>&1
+	local rc=$?
+	set -e
+	if [ $rc -ne 0 ]; then
+		echo "ERROR: Coin configure failed ($arch); log tail:" >&2
+		tail -40 "$S4_WORK/coin-$arch-configure.log" >&2
+		cp "$S4_WORK/coin-$arch-configure.log" "$S4_ROOT/dist-s4/" 2>/dev/null || true
+		exit 1
+	fi
+	cmake --build "$S4_WORK/coin-$arch" -j3
+	cmake --install "$S4_WORK/coin-$arch"
+	find "$out" -name '*Coin*' | head
+	lipo -info "$out/lib/libCoin.a"
+}
+
+# configure_app <srcdir> <builddir> <device|sim>
+configure_app() {
+	local src="$1" bld="$2" arch="$3"
+	local sysroot=iphoneos
+	[ "$arch" = sim ] && sysroot=iphonesimulator
+	rm -rf "$bld"
+	cmake -S "$src" -B "$bld" -G Ninja \
+		-DCMAKE_TOOLCHAIN_FILE="$QT_IOS/lib/cmake/Qt6/qt.toolchain.cmake" \
+		-DQT_HOST_PATH="$QT_DESKTOP" \
+		-DCMAKE_PREFIX_PATH="$QT_IOS" -DQt6_DIR="$QT_IOS/lib/cmake/Qt6" \
+		-DCMAKE_OSX_SYSROOT="$sysroot" \
+		-DCMAKE_OSX_DEPLOYMENT_TARGET=17.0 \
+		-DCMAKE_BUILD_TYPE=Release \
+		-DS4_PREFIX="$S4_PREFIX"
+}
+
+# run_in_simulator <app> <bundle-id> <result-file-name> <outdir>
+# Boots the first available simulator (iPad preferred), installs the
+# app, screenshots mid-run, launches with console capture, pulls the
+# app's result file from its sandbox. Evidence lands in <outdir>.
+run_in_simulator() {
+	local app="$1" bid="$2" resfile="$3" outdir="$4"
+	mkdir -p "$outdir"
+	echo "== selecting simulator"
+	local udid
+	udid="$(python3 - <<'PY'
+import json, subprocess
+data = json.loads(subprocess.check_output(["xcrun", "simctl", "list", "devices", "available", "-j"]))
+cands = []
+for runtime, devs in data["devices"].items():
+    for d in devs:
+        if d.get("isAvailable"):
+            cands.append((0 if "iPad" in d["name"] else 1, d["udid"], d["name"]))
+cands.sort()
+print(cands[0][1] if cands else "")
+import sys
+if cands: print("SIM:", cands[0][2], file=sys.stderr)
+PY
+)"
+	[ -n "$udid" ] || { echo "ERROR: no available simulator" >&2; xcrun simctl list devices available >&2; exit 1; }
+	echo "simulator UDID: $udid"
+	xcrun simctl boot "$udid" 2>/dev/null || true
+	xcrun simctl bootstatus "$udid" -b
+	xcrun simctl install "$udid" "$app"
+	echo "== launching $bid (console captured; app self-quits)"
+	( sleep 7; xcrun simctl io "$udid" screenshot "$outdir/simulator-screenshot.png" 2>/dev/null || true ) &
+	local shotpid=$!
+	set +e
+	timeout 90 xcrun simctl launch --console-pty "$udid" "$bid" > "$outdir/app-console.log" 2>&1
+	echo "simctl launch exit: $?" | tee -a "$outdir/app-console.log"
+	set -e
+	wait $shotpid 2>/dev/null || true
+	ls -lh "$outdir/simulator-screenshot.png" 2>/dev/null || echo "WARNING: no screenshot"
+	local container
+	container="$(xcrun simctl get_app_container "$udid" "$bid" data 2>/dev/null || true)"
+	echo "app container: $container"
+	if [ -n "$container" ] && [ -f "$container/Documents/$resfile" ]; then
+		cp "$container/Documents/$resfile" "$outdir/"
+		echo "--- $resfile:"; cat "$outdir/$resfile"
+	else
+		echo "WARNING: result file $resfile not found in app sandbox"
+		find "$container" -type f 2>/dev/null | head -20 || true
+	fi
+	xcrun simctl terminate "$udid" "$bid" 2>/dev/null || true
+}
