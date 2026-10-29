@@ -177,12 +177,12 @@ build_glu() {
 		if [ "${f##*.}" = "c" ]; then
 			xcrun -sdk "$sdk" clang -target "$tgt" -std=gnu11 -O2 -DNDEBUG \
 				-DLIBRARYBUILD \
-				-include assert.h -include stdlib.h -include string.h \
+				-include assert.h -include stdlib.h -include string.h -include limits.h \
 				"${incs[@]}" -c "$f" -o "$o"
 		else
 			xcrun -sdk "$sdk" clang++ -target "$tgt" -std=c++14 -O2 -DNDEBUG \
 				-DLIBRARYBUILD \
-				-include assert.h -include stdlib.h -include string.h \
+				-include assert.h -include stdlib.h -include string.h -include limits.h \
 				"${incs[@]}" -c "$f" -o "$o"
 		fi
 		n=$((n+1))
@@ -290,6 +290,7 @@ configure_app() {
 			"$QT_IOS/plugins/platforms/libqios.a"; do
 			echo "-- $_a"
 			lipo -detailed_info "$_a" 2>/dev/null | grep -E "architecture|platform|sdk" | head -12 || file "$_a"
+			vtool -show-build "$_a" 2>/dev/null | grep -E "architecture|platform" | head -8 || true
 		done
 	fi
 	rm -rf "$bld"
