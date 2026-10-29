@@ -10,12 +10,37 @@ name: Build FreeCAD IPA
 
 on:
   workflow_dispatch:
+    inputs:
+      foundations_run_id:
+        description: "Deps-Foundations run id (blank = no dep download)"
+        required: false
+        type: string
+        default: ""
+      occt_run_id:
+        description: "Deps-OCCT run id (blank = no dep download)"
+        required: false
+        type: string
+        default: ""
+      python_run_id:
+        description: "Deps-Python run id (blank = no dep download)"
+        required: false
+        type: string
+        default: ""
+      data_run_id:
+        description: "Deps-Data run id (blank = no dep download)"
+        required: false
+        type: string
+        default: ""
   push:
     paths:
       - "PIN.md"
       - "Scripts/**"
       - "Patches/**"
       - ".github/workflows/build-freecad.yml"
+
+concurrency:
+  group: build-freecad-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   smoke:
@@ -73,13 +98,58 @@ jobs:
             build-freecad-ccache-core-
             build-freecad-ccache-
 
-      - name: Download dependency tarballs
+      - name: Download foundations dep
+        if: ${{ inputs.foundations_run_id != '' }}
         uses: actions/download-artifact@v4
         with:
-          pattern: iosdeps-*
+          pattern: iosdeps-foundations-*
+          run-id: ${{ inputs.foundations_run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           merge-multiple: true
           path: ios-deps-artifacts
-        continue-on-error: true
+
+      - name: Download OCCT dep
+        if: ${{ inputs.occt_run_id != '' }}
+        uses: actions/download-artifact@v4
+        with:
+          pattern: iosdeps-occt-*
+          run-id: ${{ inputs.occt_run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          merge-multiple: true
+          path: ios-deps-artifacts
+
+      - name: Download Python dep
+        if: ${{ inputs.python_run_id != '' }}
+        uses: actions/download-artifact@v4
+        with:
+          pattern: iosdeps-python-*
+          run-id: ${{ inputs.python_run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          merge-multiple: true
+          path: ios-deps-artifacts
+
+      - name: Download data dep
+        if: ${{ inputs.data_run_id != '' }}
+        uses: actions/download-artifact@v4
+        with:
+          pattern: iosdeps-data-*
+          run-id: ${{ inputs.data_run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          merge-multiple: true
+          path: ios-deps-artifacts
+
+      - name: Assert one tarball per dep family
+        if: ${{ inputs.foundations_run_id != '' || inputs.occt_run_id != '' || inputs.python_run_id != '' || inputs.data_run_id != '' }}
+        run: |
+          for fam in foundations occt python data; do
+            n=$(ls ios-deps-artifacts/ 2>/dev/null | grep -c "iosdeps-$fam-" || true)
+            if [ "$n" -gt 1 ]; then
+              echo "ERROR: $n $fam tarballs staged - cross-generation mixing"
+              ls ios-deps-artifacts/
+              exit 1
+            fi
+          done
+          ls -la ios-deps-artifacts/ || true
 
       - name: Build core libraries
         run: bash Scripts/build-freecad.sh core
@@ -130,13 +200,58 @@ jobs:
           name: freecad-core-${{ hashFiles('PIN.md', 'Scripts/build-freecad.sh') }}
           path: dist-core-in
 
-      - name: Download dependency tarballs
+      - name: Download foundations dep
+        if: ${{ inputs.foundations_run_id != '' }}
         uses: actions/download-artifact@v4
         with:
-          pattern: iosdeps-*
+          pattern: iosdeps-foundations-*
+          run-id: ${{ inputs.foundations_run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           merge-multiple: true
           path: ios-deps-artifacts
-        continue-on-error: true
+
+      - name: Download OCCT dep
+        if: ${{ inputs.occt_run_id != '' }}
+        uses: actions/download-artifact@v4
+        with:
+          pattern: iosdeps-occt-*
+          run-id: ${{ inputs.occt_run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          merge-multiple: true
+          path: ios-deps-artifacts
+
+      - name: Download Python dep
+        if: ${{ inputs.python_run_id != '' }}
+        uses: actions/download-artifact@v4
+        with:
+          pattern: iosdeps-python-*
+          run-id: ${{ inputs.python_run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          merge-multiple: true
+          path: ios-deps-artifacts
+
+      - name: Download data dep
+        if: ${{ inputs.data_run_id != '' }}
+        uses: actions/download-artifact@v4
+        with:
+          pattern: iosdeps-data-*
+          run-id: ${{ inputs.data_run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          merge-multiple: true
+          path: ios-deps-artifacts
+
+      - name: Assert one tarball per dep family
+        if: ${{ inputs.foundations_run_id != '' || inputs.occt_run_id != '' || inputs.python_run_id != '' || inputs.data_run_id != '' }}
+        run: |
+          for fam in foundations occt python data; do
+            n=$(ls ios-deps-artifacts/ 2>/dev/null | grep -c "iosdeps-$fam-" || true)
+            if [ "$n" -gt 1 ]; then
+              echo "ERROR: $n $fam tarballs staged - cross-generation mixing"
+              ls ios-deps-artifacts/
+              exit 1
+            fi
+          done
+          ls -la ios-deps-artifacts/ || true
 
       - name: Build workbenches and package IPA
         run: bash Scripts/build-freecad.sh package
@@ -144,7 +259,7 @@ jobs:
       - name: Upload IPA
         uses: actions/upload-artifact@v4
         with:
-          name: FreeCAD-unsigned
+          name: FreeCAD-unsigned-SHELL
           path: FreeCAD-unsigned.ipa
           retention-days: 90
           if-no-files-found: warn
