@@ -197,9 +197,9 @@ build_coin() {
 	lipo -info "$out/lib/libCoin.a"
 }
 
-# configure_app <srcdir> <builddir> <device|sim>
+# configure_app <srcdir> <builddir> <device|sim> [extra cmake -D args...]
 configure_app() {
-	local src="$1" bld="$2" arch="$3"
+	local src="$1" bld="$2" arch="$3"; shift 3
 	local sysroot=iphoneos
 	[ "$arch" = sim ] && sysroot=iphonesimulator
 	rm -rf "$bld"
@@ -210,7 +210,7 @@ configure_app() {
 		-DCMAKE_OSX_SYSROOT="$sysroot" \
 		-DCMAKE_OSX_DEPLOYMENT_TARGET=17.0 \
 		-DCMAKE_BUILD_TYPE=Release \
-		-DS4_PREFIX="$S4_PREFIX"
+		-DS4_PREFIX="$S4_PREFIX" "$@"
 }
 
 # run_in_simulator <app> <bundle-id> <result-file-name> <outdir>
