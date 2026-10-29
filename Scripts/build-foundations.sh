@@ -6,7 +6,8 @@
 # 17.0, in order:
 #   zlib 1.3.1 -> FreeType 2.13.3 -> HarfBuzz 10.4.0 -> yaml-cpp 0.8.0
 #   -> Xerces-C 3.3.0 -> Eigen 3.4.0 (headers copied) -> Boost 1.88.0
-#   compiled libs ONLY (program_options, regex, thread, date_time).
+#   (program_options, thread, date_time as compiled .a; regex is
+#   header-only INTERFACE in 1.88's CMake build — see Boost section).
 #
 # Xerces-C transcoder choice: Xerces-C 3.3.0's CMake offers icu /
 # macosunicodeconverter / gnuiconv / iconv / windows — there is NO
@@ -189,7 +190,16 @@ build_cmake "boost" "$SRCDIR/boost-1.88.0" \
 	-DBOOST_INCLUDE_LIBRARIES="program_options;regex;thread;date_time" \
 	-DBOOST_ENABLE_CMAKE=ON
 verify_lib "boost-program_options" "lib/libboost_program_options.a" "program_options"
-verify_lib "boost-regex" "lib/libboost_regex.a" "regex"
+# Boost.Regex 1.88 is HEADER-ONLY in the CMake superproject: its own
+# libs/regex/CMakeLists.txt declares `add_library(boost_regex
+# INTERFACE)` (verified in the -cmake tarball), so no
+# libboost_regex.a exists to verify — the compiled src/*.cpp are the
+# legacy b2 route only. Verify the installed INTERFACE package
+# instead: headers + CMake config package.
+echo "== verifying boost-regex (header-only INTERFACE library in 1.88)"
+test -f "$PREFIX/include/boost/regex.hpp" || { echo "ERROR: boost regex.hpp header missing" >&2; exit 1; }
+test -f "$PREFIX/lib/cmake/boost_regex-1.88.0/boost_regex-config.cmake" || { echo "ERROR: boost_regex CMake config missing" >&2; exit 1; }
+echo "   OK (boost/regex.hpp + boost_regex-1.88.0 CMake config present; no .a by design)"
 verify_lib "boost-thread" "lib/libboost_thread.a" "thread"
 verify_lib "boost-date_time" "lib/libboost_date_time.a" "date_time"
 
@@ -207,7 +217,7 @@ ls -lh "$TARBALL"
 	echo "Prefix: ios-prefix/ (static, iOS arm64, deployment target 17.0)"
 	echo "Libraries: zlib 1.3.1, FreeType 2.13.3, HarfBuzz 10.4.0, yaml-cpp 0.8.0,"
 	echo "  Xerces-C 3.3.0 (transcoder=$XERCES_TRANSCODER / system iconv, network OFF, no ICU),"
-	echo "  Eigen 3.4.0 (headers), Boost 1.88.0 (CMake route; program_options/regex/thread/date_time)"
+	echo "  Eigen 3.4.0 (headers), Boost 1.88.0 (CMake -cmake asset; program_options/thread/date_time .a, regex header-only)"
 	echo "Tarball: dist/iosdeps-foundations-$DEPS_HASH.tar.zst"
 } | tee "$DIST/foundations-report.txt"
 echo "== S1 done"
