@@ -232,9 +232,13 @@ EOF
   fi
   cmake --build "$SIMW/build-xerces" -j"$NCPU"
   cmake --install "$SIMW/build-xerces"
-  # Boost (S1 CMake-superproject recipe verbatim)
-  fetch_src "https://archives.boost.io/release/1.88.0/source/boost_1_88_0.tar.gz" "boost_1_88_0"
-  sim_cmake boost "$SIMW/src/boost_1_88_0" \
+  # Boost (S1 CMake-superproject recipe, re-based 2026-10-29 on
+  # S1's fixed route: the boost-1.88.0-cmake.tar.gz GitHub asset —
+  # the archives.boost.io tarball has no root CMakeLists.txt, which
+  # killed S1 run 40944904578; regex is a header-only INTERFACE lib
+  # in 1.88's CMake build, so no libboost_regex.a is expected)
+  fetch_src "https://github.com/boostorg/boost/releases/download/boost-1.88.0/boost-1.88.0-cmake.tar.gz" "boost-1.88.0"
+  sim_cmake boost "$SIMW/src/boost-1.88.0" \
     -DBOOST_INCLUDE_LIBRARIES="program_options;regex;thread;date_time" \
     -DBOOST_ENABLE_CMAKE=ON
   echo "A2-SIM-FOUNDATIONS-OK"
