@@ -255,11 +255,18 @@ configure_app() {
 	local src="$1" bld="$2" arch="$3"; shift 3
 	local uikit=iphoneos
 	[ "$arch" = sim ] && uikit=iphonesimulator
+	# Evidence dump: how does THIS Qt version's toolchain want the
+	# device/simulator choice expressed? (fix-6 run: QT_UIKIT_SDK alone
+	# left the sysroot on iphoneos; fix-5 run: CMAKE_OSX_SYSROOT alone
+	# set the sysroot but kept device plugin-init objects. Pass both.)
+	echo "== Qt toolchain SDK-selection machinery:"
+	grep -n "UIKIT\|iphonesimulator\|CMAKE_OSX_SYSROOT" "$QT_IOS/lib/cmake/Qt6/qt.toolchain.cmake" | head -25 || true
 	rm -rf "$bld"
 	cmake -S "$src" -B "$bld" -G Ninja \
 		-DCMAKE_TOOLCHAIN_FILE="$QT_IOS/lib/cmake/Qt6/qt.toolchain.cmake" \
 		-DQT_HOST_PATH="$QT_DESKTOP" \
 		-DQT_UIKIT_SDK="$uikit" \
+		-DCMAKE_OSX_SYSROOT="$uikit" \
 		-DCMAKE_PREFIX_PATH="$QT_IOS" -DQt6_DIR="$QT_IOS/lib/cmake/Qt6" \
 		-DCMAKE_OSX_DEPLOYMENT_TARGET=17.0 \
 		-DCMAKE_BUILD_TYPE=Release \

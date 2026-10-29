@@ -39,7 +39,7 @@ def flush():
 
 
 log("PRELUDE bundle=%s" % bundle)
-for sub in ("lib", "Mod"):
+for sub in ("lib", "Mod", "Ext"):
     p = os.path.join(bundle, sub)
     if os.path.isdir(p) and p not in sys.path:
         sys.path.insert(0, p)
