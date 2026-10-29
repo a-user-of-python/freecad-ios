@@ -7,6 +7,10 @@ name: Spike S4 — graphics (gl4es / Coin / Quarter)
 on:
   workflow_dispatch:
 
+concurrency:
+  group: spike-s4-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   tier0:
     name: S4 Tier 0 — gl4es triangle on Qt EAGL context
