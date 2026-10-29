@@ -58,7 +58,7 @@ Pinning feedstock HEAD `7c11f837d5cd7a0fbd13254f36e0ba4183e8b61e`.
 |---|---|
 | Qt | **6.9.3** (primary; fallback 6.8.3) — dual-kit aqtinstall: mac desktop host tools + `mac ios` target; `FREECAD_QT_VERSION=6` forced. Conda's Qt is 6.11 (`qt6_main: '6.11'`) but the pinned source has **no Qt 6.x minor floor** (`SetupQt.cmake`: `find_package(Qt6 REQUIRED)` unversioned; highest guards are `< 6.9.0` fallbacks; sole 6.10 reference is WIN32-only) — Stage-7 configure remains the deciding experiment |
 | PySide / Shiboken | OFF for the shipping configuration (`FREECAD_USE_PYSIDE=OFF`, `FREECAD_USE_SHIBOKEN=OFF`, `FREECAD_CHECK_PYSIDE=OFF`) |
-| cascade-ios commit | `7453e03223f3cf2c7683690f6b234f0e0cb77251` (`main` HEAD at freeze — the same commit MetalCAD 1.22 pins; the OCCT extension lands on top) |
+| cascade-ios commit | `1efb702005ec026e3c42534dda3eabef2e1bd173` (S2-extended HEAD, 2026-10-29: the 23-toolkit MetalCAD subset at `7453e03223f3cf2c7683690f6b234f0e0cb77251` + the 12 FreeCAD toolkits TKHLR/TKFeat/TKExpress/TKDEIGES/TKDEGLTF/TKDESTL/TKBin/TKBinL/TKVCAF/TKMeshVS/TKV3d/TKRWMesh + TKService/TKXCAF un-pruning — 35 toolkits, all unmodified OCCT 8.0.1) |
 | Runner | `macos-26`, standard GitHub-hosted only |
 | iOS deployment target | 17.0 |
 | Python linking | `BUILD_DYNAMIC_LINK_PYTHON=OFF` |
