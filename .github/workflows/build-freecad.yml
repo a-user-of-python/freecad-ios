@@ -1,0 +1,141 @@
+name: Build FreeCAD IPA
+
+# Structure from day one (synthesis §5): a Stage-0 smoke job, then the
+# two-job split — core libraries -> artifact -> workbenches + package —
+# so a cold build never has to fit one 360-minute job. ccache is seeded
+# by the first successful build and treated as infrastructure.
+#
+# HARD GATE: jobs core/workbench implement Stage 7, which must not run
+# for real until spikes S3 (Python) and S4 (graphics) have reported.
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "PIN.md"
+      - "Scripts/**"
+      - "Patches/**"
+      - ".github/workflows/build-freecad.yml"
+
+jobs:
+  smoke:
+    name: S0 toolchain smoke
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Maximize build space
+        run: |
+          df -h
+          sudo rm -rf /usr/share/dotnet /opt/ghc 2>/dev/null || true
+          rm -rf ~/Library/Developer/CoreSimulator/Profiles/Runtimes/* 2>/dev/null || true
+          df -h
+
+      - name: Stage-0 smoke (Qt 6.9.3 dual-kit Widgets app)
+        run: bash Scripts/build-stage0-smoke.sh
+
+      - name: Upload smoke report
+        uses: actions/upload-artifact@v4
+        with:
+          name: stage0-smoke-report
+          path: dist-smoke/
+          retention-days: 30
+          if-no-files-found: warn
+
+  core:
+    name: FreeCAD core libraries
+    runs-on: macos-26
+    env:
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Maximize build space
+        run: |
+          df -h
+          sudo rm -rf /usr/share/dotnet /opt/ghc 2>/dev/null || true
+          for x in /Applications/Xcode_*.app; do
+            [ "$x" = "/Applications/Xcode.app" ] || sudo rm -rf "$x"
+          done 2>/dev/null || true
+          rm -rf ~/Library/Developer/CoreSimulator/Profiles/Runtimes/* 2>/dev/null || true
+          df -h
+
+      - name: Restore ccache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.CCACHE_DIR }}
+          key: build-freecad-ccache-${{ hashFiles('PIN.md') }}
+          restore-keys: |
+            build-freecad-ccache-
+
+      - name: Download dependency tarballs
+        uses: actions/download-artifact@v4
+        with:
+          pattern: iosdeps-*
+          merge-multiple: true
+          path: ios-deps-artifacts
+        continue-on-error: true
+
+      - name: Build core libraries
+        run: bash Scripts/build-freecad.sh core
+
+      - name: Upload core artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: freecad-core-${{ hashFiles('PIN.md', 'Scripts/build-freecad.sh') }}
+          path: dist-core/
+          retention-days: 30
+          if-no-files-found: warn
+
+  workbench:
+    name: Workbenches + package IPA
+    needs: core
+    runs-on: macos-26
+    env:
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Maximize build space
+        run: |
+          df -h
+          sudo rm -rf /usr/share/dotnet /opt/ghc 2>/dev/null || true
+          for x in /Applications/Xcode_*.app; do
+            [ "$x" = "/Applications/Xcode.app" ] || sudo rm -rf "$x"
+          done 2>/dev/null || true
+          rm -rf ~/Library/Developer/CoreSimulator/Profiles/Runtimes/* 2>/dev/null || true
+          df -h
+
+      - name: Restore ccache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.CCACHE_DIR }}
+          key: build-freecad-ccache-${{ hashFiles('PIN.md') }}
+          restore-keys: |
+            build-freecad-ccache-
+
+      - name: Download core artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: freecad-core-${{ hashFiles('PIN.md', 'Scripts/build-freecad.sh') }}
+          path: dist-core-in
+        continue-on-error: true
+
+      - name: Download dependency tarballs
+        uses: actions/download-artifact@v4
+        with:
+          pattern: iosdeps-*
+          merge-multiple: true
+          path: ios-deps-artifacts
+        continue-on-error: true
+
+      - name: Build workbenches and package IPA
+        run: bash Scripts/build-freecad.sh package
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: FreeCAD-unsigned
+          path: FreeCAD-unsigned.ipa
+          retention-days: 90
+          if-no-files-found: warn

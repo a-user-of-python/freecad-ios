@@ -1,0 +1,7 @@
+build/
+.build/
+ios-prefix/
+*.ipa
+*.tar.zst
+*.tar.gz
+ccache/

@@ -1,0 +1,40 @@
+name: Deps — Data layer HDF5+SMESH (S5)
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "PIN.md"
+      - "Scripts/build-data.sh"
+      - ".github/workflows/deps-data.yml"
+
+jobs:
+  build:
+    name: iosdeps-data tarball
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Maximize build space
+        run: |
+          df -h
+          sudo rm -rf /usr/share/dotnet /opt/ghc 2>/dev/null || true
+          for x in /Applications/Xcode_*.app; do
+            [ "$x" = "/Applications/Xcode.app" ] || sudo rm -rf "$x"
+          done 2>/dev/null || true
+          rm -rf ~/Library/Developer/CoreSimulator/Profiles/Runtimes/* 2>/dev/null || true
+          df -h
+
+      - name: Compute content hash
+        run: echo "DEPS_HASH=${{ hashFiles('PIN.md', 'Scripts/build-data.sh') }}" >> "$GITHUB_ENV"
+
+      - name: Build data layer (HDF5, SMESH; iOS arm64)
+        run: bash Scripts/build-data.sh
+
+      - name: Upload deps tarball
+        uses: actions/upload-artifact@v4
+        with:
+          name: iosdeps-data-${{ env.DEPS_HASH }}
+          path: dist/
+          retention-days: 90
+          if-no-files-found: warn
