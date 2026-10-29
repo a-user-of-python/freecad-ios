@@ -7,6 +7,10 @@ name: Spike S3 — Device IPA (Phase A1 harness)
 on:
   workflow_dispatch:
 
+concurrency:
+  group: spike-s3-device-ipa-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   ipa:
     name: S3 device IPA (unsigned)
