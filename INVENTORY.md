@@ -11,7 +11,7 @@ and the patch series.
 | S0 | Toolchain smoke: Qt 6.9.3 dual-kit aqtinstall + Widgets smoke app (FEBio recipe) | not started |
 | S1 | Foundations: zlib → FreeType → HarfBuzz → yaml-cpp → Xerces-C → Eigen → Boost (compiled libs only) | not started |
 | S2 | OCCT extension: census `${OCC_LIBRARIES}` vs cascade-ios 23 toolkits → extend staging to the full set; MetalCAD non-regression | **census DONE (configured, triple-verified)** — work order = 12 toolkits: TKHLR, TKFeat, TKExpress, TKDEIGES, TKDEGLTF, TKDESTL, TKBin, TKBinL, TKVCAF, TKMeshVS, TKV3d, TKRWMesh → target tree 35. TKXml/TKDEVRML are NOT required (front 01/synthesis expectation corrected by the census). Extension in progress |
-| S3 | Python spike (BeeWare 3.13 XCFramework + App/Part stack: TestPartApp, STEP round-trip, PartDesign recompute) | gated on S3/S4 report before Stage 7 |
+| S3 | Python spike (BeeWare 3.13 XCFramework + App/Part stack: TestPartApp, STEP round-trip, PartDesign recompute) | **Phase A1 PASS (SIMULATOR)** 2026-10-29: Python 3.13.18 (BeeWare 3.13-b18) embeds, 59/61 stdlib imports OK (tkinter/turtle only), ctypes calls work, device arm64 build OK; verdict `hidden_files/research/s3-spike-verdict.md` in the goal workspace. **Phase A2 PENDING-DEPS** (real foundations/OCCT prefixes not yet landed; probe + gated build staged in `Spike/S3/`) |
 | S4 | Graphics spike: gl4es + Coin 4.0.10 + vendored QuarterWidget (Tiers 0–1 first) | gated on S3/S4 report before Stage 7 |
 | S5 | Data layer: HDF5 → SMESH (bundled copy) | not started |
 | S6 | VTK subset (FEM phases only) | deferred |
@@ -55,5 +55,6 @@ mitigations.)
 | deps-occt | — | — | — |
 | deps-data | — | — | — |
 | deps-vtk | — | — | — |
-| deps-python | — | — | — |
+| deps-python | run 40916785036, success (2026-10-29) | — | `iosdeps-python-c779deaaae9e8557c3e59f5314b9bfcc45b7bfbe37c7df0ffd4e790f164b3506.tar.zst` (46,153,608 B artifact, contents verified) |
+| spike-s3 | runs 40916784992 + 40917033234, both success (2026-10-29) | — | `spike-s3-results` (simulator probe report + device-build report) |
 | build-freecad | — | — | — |

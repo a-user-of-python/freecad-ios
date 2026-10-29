@@ -38,7 +38,7 @@ Pinning feedstock HEAD `7c11f837d5cd7a0fbd13254f36e0ba4183e8b61e`.
 | Dependency | Pinned version | Notes |
 |---|---|---|
 | OCCT | **8.0.1** | cascade-ios tree, extended to the full `${OCC_LIBRARIES}` set |
-| Python | **3.13** (`3.13.* *_cp313`) | BeeWare XCFramework route; PEP 730 upstream build as fallback |
+| Python | **3.13.18** | BeeWare Python-Apple-support **3.13-b18** prebuilt XCFramework (resolved 2026-10-29, spike S3 A1); asset sha256 `d06acf2a9c7964a8689566353a0e707402eff822037de5e29ba0e16040f7047d`; PEP 730 upstream build as fallback |
 | Coin | **4.0.10** | external build against gl4es (spike S4); the tree also vendors a coin submodule (above) — S4 records any material version difference |
 | Boost | **1.88** | pinning `libboost_devel`/`libboost_headers`/`libboost_python_devel` all `1.88`. ⚠️ Research synthesis said 1.90 — live pinning says **1.88**, and the feedstock proves this snapshot against pinning, so 1.88 is the pin. Compiled libs only: program_options, regex, thread, date_time |
 | SMESH | **9.9.0.0** (feedstock floor `smesh >=9.9`; not a pinning key) | FreeCAD's bundled copy (`src/3rdParty/salomesmesh`) is primary |
