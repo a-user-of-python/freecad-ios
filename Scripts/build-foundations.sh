@@ -383,11 +383,23 @@ int main() {
     return (n == 2 && std::strcmp(e, "U_ZERO_ERROR") == 0) ? 0 : 1;
 }
 EOF
+# ICU_INCLUDE_DIR is seeded to the prefix on purpose (run
+# 40981512637 evidence): unseeded, FindICU resolved the include dir
+# to the SDK sysroot's /usr/include — whose libicucore headers are
+# configured WITHOUT symbol renaming, so the probe compiled
+# references to _u_strlen/_u_errorName while our libraries export
+# the renamed _u_strlen_78/_u_errorName_78, and the link failed on
+# exactly those two symbols. Seeding the prefix headers (renaming
+# ON, matching the libraries) is the feedstock-style fix; the
+# assertion below proves the seed took.
 cmake -S "$ICU_PROBE" -B "$WORK/build-icu-probe" -G Ninja "${COMMON[@]}" \
 	-DICU_ROOT="$PREFIX" \
+	-DICU_INCLUDE_DIR="$PREFIX/include" \
+	-DICU_INCLUDE_DIRS="$PREFIX/include" \
 	-DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=TRUE \
 	> "$WORK/icu-probe-configure.log" 2>&1 || { echo "ERROR: FindICU probe configure failed" >&2; cat "$WORK/icu-probe-configure.log" >&2; exit 1; }
 grep -i "Found ICU" "$WORK/icu-probe-configure.log" || true
+grep -q "ICU_INCLUDE_DIR.*$PREFIX/include" "$WORK/build-icu-probe/CMakeCache.txt" || { echo "ERROR: FindICU include dir is not the iOS prefix (SDK header masquerade?)" >&2; exit 1; }
 grep -E "ICU.*(LIBRARY|LIBRARIES)" "$WORK/build-icu-probe/CMakeCache.txt" || true
 # The resolved uc/i18n libraries must be THIS prefix's iOS archives —
 # checked against both the cache and the generated link line so the
