@@ -298,8 +298,42 @@ rm -rf "$ICU_IOS_BUILD"; mkdir -p "$ICU_IOS_BUILD"
 			--with-data-packaging=library \
 			--disable-samples --disable-tests --disable-extras
 ) > "$WORK/icu-ios-configure.log" 2>&1 || { echo "ERROR: ICU target configure failed" >&2; tail -30 "$WORK/icu-ios-configure.log" >&2; exit 1; }
-make -C "$ICU_IOS_BUILD" -j"$NCPU" > "$WORK/icu-ios-build.log" 2>&1 || { echo "ERROR: ICU target build failed" >&2; tail -30 "$WORK/icu-ios-build.log" >&2; exit 1; }
-make -C "$ICU_IOS_BUILD" install > "$WORK/icu-ios-install.log" 2>&1 || { echo "ERROR: ICU target install failed" >&2; tail -30 "$WORK/icu-ios-install.log" >&2; exit 1; }
+# Target build/install is driven PER SUBDIRECTORY (stubdata, common,
+# i18n, data, io, tools/toolutil) — never the top-level tools/.
+# Reason (run 40975251721 evidence): the top-level make also compiles
+# the tool EXECUTABLES for the target, and tools/pkgdata/pkgdata.cpp
+# calls system(), which the iPhoneOS 26 SDK headers mark explicitly
+# unavailable for iOS — a hard clang error. In a cross build those
+# executables are never run (the data build executes the HOST tools
+# via --with-cross-build), so building them for iOS is pure loss.
+# What consumers need is libraries + data + headers: libicudata,
+# libicuuc, libicui18n, libicuio and the toolutil library libicutu.
+for icudir in stubdata common i18n data io tools/toolutil; do
+	echo "== ICU target: make -C $icudir"
+	make -C "$ICU_IOS_BUILD/$icudir" -j"$NCPU" > "$WORK/icu-ios-build-$icudir.log" 2>&1 \
+		|| { echo "ERROR: ICU target build failed in $icudir" >&2; tail -30 "$WORK/icu-ios-build-$icudir.log" >&2; exit 1; }
+done
+: > "$WORK/icu-ios-install.log"
+for icudir in stubdata common i18n data io tools/toolutil; do
+	make -C "$ICU_IOS_BUILD/$icudir" install >> "$WORK/icu-ios-install.log" 2>&1 \
+		|| { echo "ERROR: ICU target install failed in $icudir" >&2; tail -30 "$WORK/icu-ios-install.log" >&2; exit 1; }
+done
+# Best-effort: icu-config + pkg-config files live outside the library
+# subdirs (normally installed by the top-level install). FindICU does
+# not require them (the probe disables PkgConfig and asserts direct
+# prefix resolution), but Stage 7 may consult them — copy if present.
+ICU_CONFIG_BIN="$(find "$ICU_IOS_BUILD" -maxdepth 3 -name icu-config -type f 2>/dev/null | head -1)"
+if [ -n "$ICU_CONFIG_BIN" ]; then
+	mkdir -p "$PREFIX/bin"
+	sed "s|^prefix=.*|prefix=\"$PREFIX\"|" "$ICU_CONFIG_BIN" > "$PREFIX/bin/icu-config" || cp "$ICU_CONFIG_BIN" "$PREFIX/bin/icu-config"
+	chmod +x "$PREFIX/bin/icu-config"
+	echo "   installed bin/icu-config (from $ICU_CONFIG_BIN)"
+fi
+mkdir -p "$PREFIX/lib/pkgconfig"
+for pc in $(find "$ICU_IOS_BUILD" -maxdepth 3 -name 'icu-*.pc' 2>/dev/null); do
+	sed "s|^prefix=.*|prefix=$PREFIX|" "$pc" > "$PREFIX/lib/pkgconfig/$(basename "$pc")" || cp "$pc" "$PREFIX/lib/pkgconfig/"
+done
+ls "$PREFIX/lib/pkgconfig/" | grep -i icu || echo "   (no icu .pc files generated; not required)"
 # Symbol greps are prefix substrings on purpose: default ICU renaming
 # exports u_strlen_78 / unum_open_78 / icudt78l_dat, all matched here.
 verify_lib "icuuc" "lib/libicuuc.a" "u_strlen"
