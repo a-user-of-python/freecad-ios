@@ -50,6 +50,29 @@ using SIM::Coin3D::Quarter::QuarterWidget;
 
 static bool g_gl4esReady = false;
 
+// Fix-24: gl4es MUST be initialised before Coin's first render, or
+// Coin caches a broken cc_glglue (created while gl4es entry points
+// were still inert) and never draws again. Quarter can render without
+// any Qt paint event (sensor-driven redraw()), so a paint filter is
+// too late. Instead, initialise gl4es inside a helper QOpenGLWidget's
+// initializeGL() — Qt guarantees a current context there; this is the
+// exact pattern that worked in Tier 0 — before QuarterWidget exists.
+class GlInitWidget : public QOpenGLWidget {
+public:
+    explicit GlInitWidget(const QSurfaceFormat& fmt) { setFormat(fmt); }
+protected:
+    void initializeGL() override
+    {
+        if (!g_gl4esReady) {
+            s4InitGl4es();
+            std::printf("S4T1: gl4es initialised in helper initializeGL; GL_VERSION=%s RENDERER=%s\n",
+                        s4GlVersion(), s4GlRenderer());
+            g_gl4esReady = true;
+        }
+    }
+    void paintGL() override {}
+};
+
 static void ensureGl4es(QuarterWidget* qw)
 {
     if (g_gl4esReady) return;
@@ -153,6 +176,25 @@ int main(int argc, char** argv)
     // switch to render without VBOs (direct-linked calls only).
     ::setenv("COIN_GL_DISABLE_VBO", "1", 1);
     QApplication app(argc, argv);
+
+    // Bring gl4es up FIRST, on a helper widget using the same surface
+    // format family Quarter's viewport will request.
+    {
+        QSurfaceFormat fmt;
+        fmt.setRenderableType(QSurfaceFormat::OpenGL);
+        fmt.setProfile(QSurfaceFormat::CompatibilityProfile);
+        fmt.setOption(QSurfaceFormat::DeprecatedFunctions, true);
+        fmt.setSwapBehavior(QSurfaceFormat::DoubleBuffer);
+        auto* helper = new GlInitWidget(fmt);
+        helper->resize(2, 2);
+        helper->show();
+        for (int i = 0; i < 50 && !g_gl4esReady; ++i) {
+            QCoreApplication::processEvents(QEventLoop::AllEvents, 100);
+        }
+        std::printf("S4T1: helper gl4es ready=%d\n", (int)g_gl4esReady);
+        helper->hide();
+    }
+
     SIM::Coin3D::Quarter::Quarter::init(true);
 
     auto* qw = new QuarterWidget();
