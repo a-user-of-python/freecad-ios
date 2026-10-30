@@ -299,7 +299,10 @@ ls -lh "$PREFIX/lib"
 # ---------------------------------------------------------- package
 command -v zstd >/dev/null || brew install zstd
 echo "== installed OCCT tree:"
-find "$PREFIX" -type f | sort | sed 's/^/   /' | head -n 60
+# (|| true: run 40975856297 passed verification but died HERE —
+# head -n 60 closes the pipe, find/sort take SIGPIPE, and pipefail
+# turns the listing into a fatal error under set -e.)
+find "$PREFIX" -type f | sort | sed 's/^/   /' | head -n 60 || true
 TARBALL="$DIST/iosdeps-occt-8.0.1-$DEPS_HASH.tar.zst"
 rm -f "$TARBALL"
 tar -cf - -C "$ROOT" ios-prefix | zstd -19 -f -o "$TARBALL"
