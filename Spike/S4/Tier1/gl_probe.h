@@ -12,3 +12,13 @@ int s4GlErrorCount();
 // in static buffers.
 const char* s4GlVersion();
 const char* s4GlRenderer();
+
+// Diagnostic (fix 22): draws the Tier-0 lit fixed-function triangle
+// through raw gl4es calls into the currently bound framebuffer of size
+// w x h, then reads pixels back. Returns lit-pixel count; centre RGB
+// written to centre[3]. Proves whether the widget FBO/context path can
+// draw at all at the moment Coin renders nothing.
+long s4DrawProbeTriangle(int w, int h, int centre[3]);
+// Reads back the whole w x h framebuffer and counts cone-orange
+// pixels after whatever was last drawn (e.g. a forced Coin render).
+long s4CountConePixels(int w, int h, int centre[3]);

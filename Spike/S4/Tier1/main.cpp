@@ -26,6 +26,7 @@
 #include <QTextStream>
 #include <QImage>
 #include <cstdio>
+#include <cstdlib>
 #include <cmath>
 #include <set>
 #include <vector>
@@ -133,8 +134,14 @@ static double frameDiffFrac(const QImage& aIn, const QImage& bIn)
     return n ? (double)diff / n : 0.0;
 }
 
+static long g_probeTriLit = -1; static int g_probeTriCentre[3] = { -1, -1, -1 };
+static long g_probeCoinCone = -1; static int g_probeCoinCentre[3] = { -1, -1, -1 };
+
 int main(int argc, char** argv)
 {
+    // Coin's own diagnostics (read lazily by Coin at first GL use):
+    ::setenv("COIN_DEBUG_GLGLUE", "1", 1);
+    ::setenv("COIN_DEBUG_DL", "1", 1);
     QApplication app(argc, argv);
     SIM::Coin3D::Quarter::Quarter::init(true);
 
@@ -206,10 +213,39 @@ int main(int argc, char** argv)
         qw->redraw();
     });
 
-    // t=6s: capture frame B (post-drag). If the drag did not move the
-    // image, orbit the viewer's camera programmatically instead.
+    // t=6s: DIAGNOSTIC probes (fix 22), then capture frame B.
+    // Probe 1: raw gl4es triangle into the widget FBO (path health).
+    // Probe 2: forced synchronous Coin render + direct readback.
     QTimer::singleShot(6000, qw, [&]() {
         auto* glw = qobject_cast<QOpenGLWidget*>(qw->viewport());
+        ensureGl4es(qw);
+        glw->makeCurrent();
+        const int W = frameA.width(), H = frameA.height();
+        if (W > 0 && H > 0) {
+            int ctr[3];
+            g_probeTriLit = s4DrawProbeTriangle(W, H, ctr);
+            g_probeTriCentre[0] = ctr[0]; g_probeTriCentre[1] = ctr[1]; g_probeTriCentre[2] = ctr[2];
+            std::printf("S4T1 PROBE raw-triangle: lit=%ld centre=%d,%d,%d (fbo %dx%d)\n",
+                        g_probeTriLit, ctr[0], ctr[1], ctr[2], W, H);
+            auto* rm = qw->getSoRenderManager();
+            if (rm) {
+                SoCamera* c = rm->getCamera();
+                if (c) {
+                    SbVec3f p = c->position.getValue();
+                    std::printf("S4T1 PROBE camera pos=%.2f,%.2f,%.2f viewport=%dx%d\n",
+                                p[0], p[1], p[2],
+                                rm->getViewportRegion().getViewportSizePixels()[0],
+                                rm->getViewportRegion().getViewportSizePixels()[1]);
+                }
+                rm->render();
+                int ctr2[3];
+                g_probeCoinCone = s4CountConePixels(W, H, ctr2);
+                g_probeCoinCentre[0] = ctr2[0]; g_probeCoinCentre[1] = ctr2[1]; g_probeCoinCentre[2] = ctr2[2];
+                std::printf("S4T1 PROBE coin-render: conePx=%ld centre=%d,%d,%d\n",
+                            g_probeCoinCone, ctr2[0], ctr2[1], ctr2[2]);
+            }
+        }
+        glw->doneCurrent();
         frameB = glw->grabFramebuffer();
         stB = statsOf(frameB);
         diffDrag = frameDiffFrac(frameA, frameB);
@@ -264,7 +300,11 @@ int main(int argc, char** argv)
            << " lum_std=" << QString::number(st.lumStd, 'f', 2) << "\n"
            << "drag_diff_fraction=" << QString::number(diffDrag, 'f', 4) << "\n"
            << "drag_moved_camera=" << (dragMovedCamera ? "YES" : "NO") << "\n"
-           << "orbit_diff_fraction=" << QString::number(diffOrbit, 'f', 4) << "\n";
+           << "orbit_diff_fraction=" << QString::number(diffOrbit, 'f', 4) << "\n"
+           << "probe_raw_triangle_lit=" << (double)g_probeTriLit << "\n"
+           << "probe_raw_triangle_centre=" << g_probeTriCentre[0] << "," << g_probeTriCentre[1] << "," << g_probeTriCentre[2] << "\n"
+           << "probe_coin_render_cone_px=" << (double)g_probeCoinCone << "\n"
+           << "probe_coin_render_centre=" << g_probeCoinCentre[0] << "," << g_probeCoinCentre[1] << "," << g_probeCoinCentre[2] << "\n";
         std::printf("%s", qPrintable(report));
         std::fflush(stdout);
         frameC.save(QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation) + "/s4_tier1_frame.png");
