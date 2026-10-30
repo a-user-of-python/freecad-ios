@@ -378,6 +378,12 @@ PY
 		echo "ERROR: result file $resfile not found in app sandbox — the app did not complete its run" >&2
 		find "$container" -type f 2>/dev/null | head -20 || true
 		echo "--- app-console.log:"; cat "$outdir/app-console.log" || true
+		# Collect any crash report the simulator wrote for this app.
+		local simlogs="$HOME/Library/Developer/CoreSimulator/Devices/$udid/data/Library/Logs"
+		find "$simlogs" -name "*.ips" -newermt "-30 minutes" 2>/dev/null | head -5 | while read -r ips; do
+			echo "--- crash report: $ips"; head -60 "$ips"
+			cp "$ips" "$outdir/" 2>/dev/null || true
+		done
 		return 1
 	fi
 }

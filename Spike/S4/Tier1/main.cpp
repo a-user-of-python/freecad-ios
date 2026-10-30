@@ -53,6 +53,7 @@ static void ensureGl4es(QuarterWidget* qw)
     if (g_gl4esReady) return;
     auto* glw = qobject_cast<QOpenGLWidget*>(qw->viewport());
     if (!glw) { std::printf("S4T1: viewport is not a QOpenGLWidget\n"); return; }
+    if (!glw->context()) { std::printf("S4T1: viewport context not created yet — deferring\n"); return; }
     glw->makeCurrent();
     // gl4es COMPILE.md (iOS): initialise immediately after the GLES
     // context is current, before any desktop-GL call. Coin's first GL
@@ -63,6 +64,22 @@ static void ensureGl4es(QuarterWidget* qw)
     glw->doneCurrent();
     g_gl4esReady = true;
 }
+
+// Safety net: if the first paint reaches the viewport before the
+// post-show ensureGl4es() ran (platform expose ordering), initialise
+// gl4es from the paint event filter — filters run before the widget's
+// own paintEvent, hence before any Coin GL call.
+class GlInitFilter : public QObject {
+public:
+    explicit GlInitFilter(QuarterWidget* qw) : QObject(qw), m_qw(qw) {}
+    bool eventFilter(QObject* obj, QEvent* ev) override
+    {
+        if (ev->type() == QEvent::Paint && !g_gl4esReady) ensureGl4es(m_qw);
+        return QObject::eventFilter(obj, ev);
+    }
+private:
+    QuarterWidget* m_qw;
+};
 
 struct ImgStats {
     long conePx = 0; long totalPx = 0;
@@ -125,7 +142,10 @@ int main(int argc, char** argv)
     qw->setBackgroundColor(QColor(13, 13, 31));
     qw->resize(700, 700);
     qw->setWindowTitle("S4 Tier1 HelloCone via QuarterWidget");
-    ensureGl4es(qw);
+    // NOTE: no gl4es init here — the viewport's QOpenGLContext does not
+    // exist until the widget is shown; the fix-20 run died inside
+    // gl4es's hardware test called from this spot (no current context).
+    qw->viewport()->installEventFilter(new GlInitFilter(qw));
 
     // HelloCone scene (self-contained camera + light, as in the
     // canonical Inventor Mentor example).
