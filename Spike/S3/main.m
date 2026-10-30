@@ -124,7 +124,9 @@
                   "text could be read back from Documents/s3-result.txt";
     }
     self.resultView.text = result;
-    [self.resultView setContentOffset:CGPointZero animated:NO];
+    // CGPointMake, not CGPointZero: the harness links only
+    // Python/Foundation/UIKit, and _CGPointZero lives in CoreGraphics.
+    [self.resultView setContentOffset:CGPointMake(0, 0) animated:NO];
     return YES;
 }
 
