@@ -27,6 +27,7 @@
 #include <QImage>
 #include <cstdio>
 #include <cstdlib>
+#include <dlfcn.h>
 #include <cmath>
 #include <set>
 #include <vector>
@@ -142,6 +143,15 @@ int main(int argc, char** argv)
     // Coin's own diagnostics (read lazily by Coin at first GL use):
     ::setenv("COIN_DEBUG_GLGLUE", "1", 1);
     ::setenv("COIN_DEBUG_DL", "1", 1);
+    // Fix-22 diagnosis: Coin resolves GL entry points at runtime by
+    // NAME, but the names it asks for are gl4es's MANGLED symbols
+    // (gl4es's Apple header mangles gl* -> gl4es_gl*, and Coin's PROC
+    // stringification picks the mangled token up), which dlsym cannot
+    // find in this statically linked executable — so every runtime-
+    // resolved pointer (incl. all VBO functions) came back NULL and
+    // Coin drew nothing. COIN_GL_DISABLE_VBO is Coin's own documented
+    // switch to render without VBOs (direct-linked calls only).
+    ::setenv("COIN_GL_DISABLE_VBO", "1", 1);
     QApplication app(argc, argv);
     SIM::Coin3D::Quarter::Quarter::init(true);
 
@@ -189,6 +199,8 @@ int main(int argc, char** argv)
     // t=3s: capture frame A; then synthetic one-finger drag across the
     // viewport through Quarter's own event handling.
     QTimer::singleShot(3000, qw, [&]() {
+        ensureGl4es(qw);
+        qw->redraw();
         auto* glw = qobject_cast<QOpenGLWidget*>(qw->viewport());
         frameA = glw->grabFramebuffer();
         stA = statsOf(frameA);
@@ -221,6 +233,13 @@ int main(int argc, char** argv)
         ensureGl4es(qw);
         glw->makeCurrent();
         const int W = frameA.width(), H = frameA.height();
+        {   // dlsym namespace probe: which GL symbol names resolve?
+            const char* names[6] = { "glGenBuffers", "gl4es_glGenBuffers",
+                                     "glGenTextures", "gl4es_glGenTextures",
+                                     "glGetString", "gl4es_glGetString" };
+            for (const char* n : names)
+                std::printf("S4T1 PROBE dlsym(%s) = %p\n", n, ::dlsym(RTLD_DEFAULT, n));
+        }
         if (W > 0 && H > 0) {
             int ctr[3];
             g_probeTriLit = s4DrawProbeTriangle(W, H, ctr);
