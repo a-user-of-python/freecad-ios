@@ -252,13 +252,13 @@ import re, sys
 p = sys.argv[1]
 s = open(p).read()
 s2 = re.sub(r"#if defined\(__EMSCRIPTEN__\) \|\| defined\(__APPLE__\)\n"
-            r"#define USE_MGL_NAMESPACE    1\n"
-            r"#define GL_GLEXT_PROTOTYPES  1\n"
-            r"#define MANGLE\(x\)            gl4es_gl##x\n"
+            r"#define USE_MGL_NAMESPACE\s+1\n"
+            r"#define GL_GLEXT_PROTOTYPES\s+1\n"
+            r"#define MANGLE\(x\)\s+gl4es_gl##x\n"
             r"#endif",
             "#define GL_GLEXT_PROTOTYPES  1", s)
 s2 = re.sub(r"#if defined\(USE_MGL_NAMESPACE\)\n#include \"gl_mangle\.h\"\n#endif\n", "", s2)
-assert s2 != s and "gl_mangle" not in s2 and "USE_MGL_NAMESPACE" not in s2, "demangle failed"
+assert s2 != s and '#include "gl_mangle.h"' not in s2 and "#define USE_MGL_NAMESPACE" not in s2, "demangle failed"
 open(p, "w").write(s2)
 print("coin gl.h de-mangled")
 PYEOF
