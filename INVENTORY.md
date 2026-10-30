@@ -18,6 +18,24 @@ and the patch series.
 | S7 | FreeCAD itself: configure (Qt experiment first) → build | **BLOCKED by the hard gate: S3 + S4 verdicts first** |
 | S8 | Bundle + unsigned IPA | not started |
 
+## First Stage-7 build — LEAN SCOPE (plan of record, 2026-10-29 22:17 ET)
+
+Sean's speed-up directive: the FIRST Stage-7 build ships the **lean
+Phase-1 workbench set only — Part, PartDesign, Sketcher, Spreadsheet,
+Mesh, Import** — the modelling core that gets him sketching and
+padding soonest. Everything else (FEM, TechDraw, Assembly, CAM,
+Draft/BIM, the VTK post stack) is explicitly deferred to follow-up
+builds AFTER the lean build reaches the device; the full workbench
+set must not inflate the first cold build or its failure surface.
+Consequences already reflected in planning: the S3-A2 console stack
+is configured with exactly this module set, so its verdict maps 1:1
+to the first build's scope; **no VTK stage is on the first build's
+critical path** (the lean set links no VTK — the Fem/SMESH VTK need
+belongs to the deferred FEM line); the S5 data stage's VTK subset is
+likewise FEM-line work, not a Stage-7 prerequisite. The twin-spike
+gate is unchanged by this directive: no Stage-7 build until S3 and
+S4 have both reported against their kill criteria.
+
 ## Resolved research discrepancies
 
 - **Fem VTK gating (synthesis appendix 1) — RESOLVED 2026-10-29 from
