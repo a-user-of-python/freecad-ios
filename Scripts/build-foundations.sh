@@ -308,6 +308,11 @@ rm -rf "$ICU_IOS_BUILD"; mkdir -p "$ICU_IOS_BUILD"
 # via --with-cross-build), so building them for iOS is pure loss.
 # What consumers need is libraries + data + headers: libicudata,
 # libicuuc, libicui18n, libicuio and the toolutil library libicutu.
+# The top-level Makefile normally creates the build tree's lib/ and
+# bin/ output dirs before recursing; per-subdir builds must create
+# them first (run 40977103722: common's ar failed with
+# "../lib/libicuuc.a: No such file or directory").
+mkdir -p "$ICU_IOS_BUILD/lib" "$ICU_IOS_BUILD/bin"
 for icudir in stubdata common i18n data io tools/toolutil; do
 	echo "== ICU target: make -C $icudir"
 	make -C "$ICU_IOS_BUILD/$icudir" -j"$NCPU" > "$WORK/icu-ios-build-$icudir.log" 2>&1 \
