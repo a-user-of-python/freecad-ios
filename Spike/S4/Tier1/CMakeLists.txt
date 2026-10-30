@@ -41,6 +41,8 @@ list(APPEND QUARTER_SOURCES "${FREECAD_SRC_DIR}/src/Gui/Inventor/SoMouseWheelEve
 file(GLOB_RECURSE QUARTER_HEADERS "${QUARTER_DIR}/*.h")
 
 add_library(Quarter STATIC ${QUARTER_SOURCES} ${QUARTER_HEADERS})
+# FreeCAD builds as C++20; SoQTQuarterAdaptor.cpp uses std::numbers.
+set_target_properties(Quarter PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON)
 target_compile_definitions(Quarter PRIVATE QUARTER_INTERNAL)
 # QuarterWidget.cpp tests GL_MULTISAMPLE through QOpenGLFunctions; the
 # enum is absent from the GLES2 headers Qt maps to on iOS. gl4es (and
@@ -59,6 +61,7 @@ target_link_libraries(Quarter PUBLIC
   "${S4_ARCH_PREFIX}/lib/libCoin.a")
 
 qt_add_executable(S4Tier1 MACOSX_BUNDLE main.cpp gl_probe.cpp gl_probe.h)
+set_target_properties(S4Tier1 PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON)
 target_include_directories(S4Tier1 PRIVATE "${GL4ES_INC}")
 target_link_libraries(S4Tier1 PRIVATE
   Quarter
