@@ -59,11 +59,18 @@
 #
 # Build order in this script:
 #   0. Pull the REAL iosdeps-foundations / iosdeps-occt artifacts
-#      (newest successful runs) via the GitHub API — foundations
-#      supplies zlib + Boost, OCCT is a hard input. Fallbacks:
-#      zlib+Boost are rebuilt in-stage if foundations is absent
-#      (reported); OCCT absent = fail fast (SMESH cannot configure
-#      without it; re-dispatch when deps-occt is green).
+#      via the GitHub API — foundations supplies zlib + Boost, OCCT
+#      is a hard input. Run selection is PINNED when the workflow
+#      passes FOUNDATIONS_RUN_ID / OCCT_RUN_ID (deps-data.yml does,
+#      defaulting to the verified runs 40985309078 / 40983737180):
+#      stub-era runs uploaded MARKER artifacts under old DEPS_HASHes,
+#      so a "newest successful" search can silently select a marker
+#      (that is exactly how run 40974740304 died). Unpinned local
+#      runs fall back to newest-successful. A pinned run that does
+#      not yield its artifact is a hard failure — no silent fallback.
+#      Unpinned fallbacks: zlib+Boost are rebuilt in-stage if
+#      foundations is absent (reported); OCCT absent = fail fast
+#      (SMESH cannot configure without it).
 #   1. HDF5 1.14.6: host (macOS) build first — 1.14.6 retired the
 #      H5detect/H5make_libsettings execution model (type init is
 #      checked-in source; H5build_settings.c is a configure_file
@@ -104,16 +111,18 @@ rm -rf "$PREFIX"; mkdir -p "$PREFIX"
 command -v zstd >/dev/null || brew install zstd
 
 # ---------------------------------------------------------- 0. deps artifacts
-# fetch_artifact <workflow-file> <artifact-name-prefix> <dest-dir>
+# fetch_artifact <workflow-file> <artifact-name-prefix> <dest-dir> [pinned-run-id]
 # On success: extracts the artifact's *.tar.zst (an ios-prefix/ tree)
 # into <dest-dir> and echoes "<run_id> <artifact_name>".
+# With a pinned run id, ONLY that run's artifacts are considered
+# (named-run consumption; see the header note on stub-era markers).
 fetch_artifact() {
-	local wf="$1" prefix_name="$2" dest="$3"
+	local wf="$1" prefix_name="$2" dest="$3" pinned="${4:-}"
 	[ -n "${GH_TOKEN:-}" ] && [ -n "${GITHUB_REPOSITORY:-}" ] || return 1
 	local sel
-	sel="$(python3 - "$wf" "$prefix_name" <<'PYEOF'
+	sel="$(python3 - "$wf" "$prefix_name" "$pinned" <<'PYEOF'
 import json, os, sys, urllib.request
-wf, prefix = sys.argv[1], sys.argv[2]
+wf, prefix, pinned = sys.argv[1], sys.argv[2], sys.argv[3]
 repo = os.environ["GITHUB_REPOSITORY"]; token = os.environ["GH_TOKEN"]
 def get(url):
     req = urllib.request.Request(url, headers={
@@ -122,6 +131,13 @@ def get(url):
     with urllib.request.urlopen(req, timeout=60) as r:
         return json.load(r)
 try:
+    if pinned:
+        arts = get(f"https://api.github.com/repos/{repo}/actions/runs/{pinned}/artifacts")["artifacts"]
+        for a in arts:
+            if a["name"].startswith(prefix) and not a["expired"]:
+                print(pinned, a["id"], a["name"]); sys.exit(0)
+        print(f"fetch_artifact: pinned run {pinned} has no usable '{prefix}*' artifact", file=sys.stderr)
+        sys.exit(1)
     runs = get(f"https://api.github.com/repos/{repo}/actions/workflows/{wf}/runs?status=success&per_page=8")["workflow_runs"]
     for run in runs:
         arts = get(f"https://api.github.com/repos/{repo}/actions/runs/{run['id']}/artifacts")["artifacts"]
@@ -157,15 +173,19 @@ PYEOF
 
 FOUNDATIONS_FROM="own-build (no usable iosdeps-foundations artifact)"
 OCCT_FROM=""
-if out="$(fetch_artifact deps-foundations.yml iosdeps-foundations- "$DEPS_PREFIX")"; then
+if out="$(fetch_artifact deps-foundations.yml iosdeps-foundations- "$DEPS_PREFIX" "${FOUNDATIONS_RUN_ID:-}")"; then
 	FOUNDATIONS_FROM="artifact: $out"
+elif [ -n "${FOUNDATIONS_RUN_ID:-}" ]; then
+	echo "ERROR: pinned foundations run $FOUNDATIONS_RUN_ID yielded no" >&2
+	echo "       usable artifact — refusing the silent in-stage fallback" >&2
+	echo "       (census determinism). Fix the pin or clear it." >&2
+	exit 1
 fi
-if out="$(fetch_artifact deps-occt.yml iosdeps-occt- "$DEPS_PREFIX")"; then
+if out="$(fetch_artifact deps-occt.yml iosdeps-occt- "$DEPS_PREFIX" "${OCCT_RUN_ID:-}")"; then
 	OCCT_FROM="artifact: $out"
 else
-	echo "ERROR: no usable iosdeps-occt artifact yet — SMESH cannot" >&2
-	echo "       configure without the OCCT prefix. Re-dispatch" >&2
-	echo "       deps-data.yml once deps-occt.yml is green." >&2
+	echo "ERROR: no usable iosdeps-occt artifact (pin: ${OCCT_RUN_ID:-none}) —" >&2
+	echo "       SMESH cannot configure without the OCCT prefix." >&2
 	exit 1
 fi
 echo "== foundations source: $FOUNDATIONS_FROM"

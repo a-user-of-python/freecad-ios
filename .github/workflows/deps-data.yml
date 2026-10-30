@@ -2,17 +2,34 @@ name: Deps — Data layer HDF5+SMESH (S5)
 
 on:
   workflow_dispatch:
+    inputs:
+      foundations_run_id:
+        description: "Deps-Foundations run id (pinned; stub-era marker artifacts make 'latest' unsafe)"
+        required: false
+        type: string
+        default: "40985309078"
+      occt_run_id:
+        description: "Deps-OCCT run id (pinned; stub-era marker artifacts make 'latest' unsafe)"
+        required: false
+        type: string
+        default: "40983737180"
   push:
     paths:
       - "PIN.md"
       - "Scripts/build-data.sh"
       - "Scripts/data-patches/**"
+      - "Scripts/qt-install.inc.sh"
       - ".github/workflows/deps-data.yml"
+
+concurrency:
+  group: deps-data-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   build:
     name: iosdeps-data tarball
     runs-on: macos-26
+    timeout-minutes: 360
     permissions:
       contents: read
       actions: read
@@ -32,12 +49,29 @@ jobs:
           df -h
 
       - name: Compute content hash
-        run: echo "DEPS_HASH=${{ hashFiles('PIN.md', 'Scripts/build-data.sh', 'Scripts/data-patches/**') }}" >> "$GITHUB_ENV"
+        run: echo "DEPS_HASH=${{ hashFiles('PIN.md', 'Scripts/build-data.sh', 'Scripts/data-patches/**', 'Scripts/qt-install.inc.sh') }}" >> "$GITHUB_ENV"
 
       - name: Build data layer (HDF5, VTK subset, libmed, SMESH; iOS arm64)
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+          FOUNDATIONS_RUN_ID: ${{ inputs.foundations_run_id || '40985309078' }}
+          OCCT_RUN_ID: ${{ inputs.occt_run_id || '40983737180' }}
         run: bash Scripts/build-data.sh
+
+      - name: Upload build diagnostics (on failure)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: deps-data-failure-${{ github.run_id }}
+          path: |
+            build/data/build-smesh/CMakeFiles/CMakeError.log
+            build/data/build-smesh/CMakeFiles/CMakeOutput.log
+            build/data/build-smesh/.ninja_log
+            build/data/build-vtk/CMakeFiles/CMakeError.log
+            build/data/build-med/CMakeFiles/CMakeError.log
+            build/data/build-hdf5/CMakeFiles/CMakeError.log
+          retention-days: 90
+          if-no-files-found: ignore
 
       - name: Upload deps tarball
         uses: actions/upload-artifact@v4
