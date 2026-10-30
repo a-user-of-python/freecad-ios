@@ -327,6 +327,7 @@ cmake -S "$FC_SRC" -B "$FC_BUILD" -G Ninja \
   -DOCC_LIBRARY="$OCCT/lib/libTKernel.a" \
   -DBoost_ROOT="$FOUND" -DBoost_NO_SYSTEM_PATHS=ON \
   -DXercesC_ROOT="$FOUND" \
+  -DICU_ROOT="$FOUND" -DICU_INCLUDE_DIR="$FOUND/include" \
   >"$OUT/configure.log" 2>&1
 CFG_RC=$?
 set -e
