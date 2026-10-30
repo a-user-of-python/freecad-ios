@@ -283,6 +283,12 @@ fi
 HDF5_SRC="$SRCDIR/hdf5-1.14.6"
 
 echo "== HDF5 host build (macOS native — harvests try-run results)"
+# HDF5_ENABLE_MIRROR_VFD=OFF on both builds: utils/mirror_vfd is NOT
+# gated by HDF5_BUILD_TOOLS, and under the Qt iOS toolchain its
+# mirror_server executable becomes a MACOSX_BUNDLE whose install()
+# has no BUNDLE DESTINATION — a hard CMake error in the TARGET
+# configure (run 40991487958). The mirror VFD is a network driver;
+# neither libmed nor SMESH needs it.
 cmake -S "$HDF5_SRC" -B "$WORK/build-hdf5-host" -G Ninja \
 	-DCMAKE_BUILD_TYPE=Release \
 	-DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
@@ -290,7 +296,7 @@ cmake -S "$HDF5_SRC" -B "$WORK/build-hdf5-host" -G Ninja \
 	-DHDF5_BUILD_TOOLS=OFF -DHDF5_BUILD_EXAMPLES=OFF \
 	-DHDF5_BUILD_CPP_LIB=OFF -DHDF5_BUILD_FORTRAN=OFF \
 	-DHDF5_BUILD_JAVA=OFF -DHDF5_ENABLE_Z_LIB_SUPPORT=ON \
-	-DHDF5_ENABLE_SZIP_SUPPORT=OFF
+	-DHDF5_ENABLE_SZIP_SUPPORT=OFF -DHDF5_ENABLE_MIRROR_VFD=OFF
 cmake --build "$WORK/build-hdf5-host" -j"$NCPU"
 
 # The try_run-derived results (config/cmake/ConfigureChecks.cmake,
@@ -329,7 +335,7 @@ cmake -S "$HDF5_SRC" -B "$WORK/build-hdf5" -G Ninja "${COMMON[@]}" \
 	-DHDF5_BUILD_TOOLS=OFF -DHDF5_BUILD_EXAMPLES=OFF \
 	-DHDF5_BUILD_CPP_LIB=OFF -DHDF5_BUILD_FORTRAN=OFF \
 	-DHDF5_BUILD_JAVA=OFF -DHDF5_ENABLE_Z_LIB_SUPPORT=ON \
-	-DHDF5_ENABLE_SZIP_SUPPORT=OFF \
+	-DHDF5_ENABLE_SZIP_SUPPORT=OFF -DHDF5_ENABLE_MIRROR_VFD=OFF \
 	-DZLIB_INCLUDE_DIR="$DEPS_PREFIX/include" \
 	-DZLIB_LIBRARY="$DEPS_PREFIX/lib/libz.a" \
 	-DZLIB_LIBRARY_RELEASE="$DEPS_PREFIX/lib/libz.a" \
