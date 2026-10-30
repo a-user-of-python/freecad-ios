@@ -340,6 +340,19 @@ for pc in $(find "$ICU_IOS_BUILD" -maxdepth 3 -name 'icu-*.pc' 2>/dev/null); do
 	sed "s|^prefix=.*|prefix=$PREFIX|" "$pc" > "$PREFIX/lib/pkgconfig/$(basename "$pc")" || cp "$pc" "$PREFIX/lib/pkgconfig/"
 done
 ls "$PREFIX/lib/pkgconfig/" | grep -i icu || echo "   (no icu .pc files generated; not required)"
+# The prefix contract is STATIC ONLY, but pkgdata's library packaging
+# on darwin emits a shared data library next to the archive (run
+# 40982745579 artifact listing: a full 32 MB arm64
+# libicudata.78.1.dylib + two symlinks alongside libicudata.a,
+# despite --disable-shared). An iOS consumer resolving the data
+# component could pick the .dylib and inherit an embed/sign burden
+# the static design exists to avoid — remove the shared set; the
+# verified carriers are the .a archives.
+if ls "$PREFIX"/lib/libicudata*.dylib >/dev/null 2>&1; then
+	echo "   removing shared libicudata*.dylib from the prefix (static-only contract; libicudata.a carries the full data)"
+	rm -f "$PREFIX"/lib/libicudata*.dylib
+fi
+ls "$PREFIX/lib/" | grep -i dylib && { echo "ERROR: shared libraries remain in the static prefix" >&2; exit 1; } || echo "   prefix lib/ is static-only (no .dylib)"
 # Symbol greps are prefix substrings on purpose: default ICU renaming
 # exports u_strlen_78 / unum_open_78 / icudt78l_dat, all matched here.
 verify_lib "icuuc" "lib/libicuuc.a" "u_strlen"
