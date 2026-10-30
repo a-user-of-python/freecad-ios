@@ -64,6 +64,28 @@ rsync -a "$XCF/lib/" "$APP/python/lib/"
 rsync -a "$SLICE_DIR/lib-arm64/" "$APP/python/lib/"
 python3 "$HARNESS/convert_dynload.py" "$APP" "$TEMPLATE" "$BUNDLE_ID"
 
+echo "== Verify file-sharing keys in the ASSEMBLED app's Info.plist =="
+# The bundle's Info.plist must BE the physical Spike/S3/Info.plist
+# (byte-identical) — no generated-plist path is involved anywhere in
+# this build (plain clang + cp; precedent: a generated plist once
+# silently dropped UIFileSharingEnabled). Fail the build if either
+# key is missing or not true in the assembled bundle.
+cmp "$HARNESS/Info.plist" "$APP/Info.plist" \
+  || { echo "FATAL: bundle Info.plist is not the physical source plist"; exit 1; }
+PB=/usr/libexec/PlistBuddy
+SHARE_VAL="$("$PB" -c "Print :UIFileSharingEnabled" "$APP/Info.plist")"
+INPLACE_VAL="$("$PB" -c "Print :LSSupportsOpeningDocumentsInPlace" "$APP/Info.plist")"
+echo "UIFileSharingEnabled=$SHARE_VAL"
+echo "LSSupportsOpeningDocumentsInPlace=$INPLACE_VAL"
+[ "$SHARE_VAL" = "true" ] \
+  || { echo "FATAL: UIFileSharingEnabled != true in bundle plist"; exit 1; }
+[ "$INPLACE_VAL" = "true" ] \
+  || { echo "FATAL: LSSupportsOpeningDocumentsInPlace != true in bundle plist"; exit 1; }
+# On-screen self-report marker must be present in the shipped binary.
+strings "$APP/S3Spike" | grep -q "Running Python probe" \
+  || { echo "FATAL: on-screen result display code missing from binary"; exit 1; }
+echo "on-screen display marker present in binary"
+
 echo "== Ad-hoc sign (inside-out) =="
 for fw in "$APP"/Frameworks/*.framework; do
   codesign --force --sign - --timestamp=none "$fw"
@@ -76,6 +98,10 @@ codesign --verify --verbose=2 "$APP" || true
   file "$APP/S3Spike"
   echo "device Python.framework:"
   file "$APP/Frameworks/Python.framework/Python"
+  echo "bundle Info.plist (physical Spike/S3/Info.plist, cmp-verified):"
+  echo "UIFileSharingEnabled=$SHARE_VAL"
+  echo "LSSupportsOpeningDocumentsInPlace=$INPLACE_VAL"
+  echo "on-screen result display: UITextView marker present in binary"
   echo "DEVICE-BUILD-OK"
 } > "$OUT_DIR/device-build.txt"
 cat "$OUT_DIR/device-build.txt"
@@ -86,6 +112,16 @@ mkdir -p "$WORK/Payload"
 cp -R "$APP" "$WORK/Payload/S3Spike.app"
 (cd "$WORK" && zip -qry "$IPA" Payload)
 [ -f "$IPA" ] || { echo "IPA not produced"; exit 1; }
+echo "== Verify file-sharing keys INSIDE the packaged IPA =="
+rm -rf "$WORK/ipacheck"; mkdir -p "$WORK/ipacheck"
+unzip -qo "$IPA" "Payload/S3Spike.app/Info.plist" -d "$WORK/ipacheck"
+IPA_PLIST="$WORK/ipacheck/Payload/S3Spike.app/Info.plist"
+IPA_SHARE="$("$PB" -c "Print :UIFileSharingEnabled" "$IPA_PLIST")"
+IPA_INPLACE="$("$PB" -c "Print :LSSupportsOpeningDocumentsInPlace" "$IPA_PLIST")"
+echo "IPA UIFileSharingEnabled=$IPA_SHARE"
+echo "IPA LSSupportsOpeningDocumentsInPlace=$IPA_INPLACE"
+[ "$IPA_SHARE" = "true" ] && [ "$IPA_INPLACE" = "true" ] \
+  || { echo "FATAL: file-sharing keys missing inside packaged IPA"; exit 1; }
 unzip -l "$IPA" | head -30
 ls -lh "$IPA"
 shasum -a 256 "$IPA"

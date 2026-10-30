@@ -5,8 +5,11 @@
 // pointed at the in-bundle python/ tree (installed by the build
 // script from the XCFramework, BeeWare's install_python layout), runs
 // probe.py, and leaves the probe's report in the app container's
-// Documents/s3-result.txt, where the CI workflow retrieves it via
-// `simctl get_app_container`. NSLog mirrors the same lines.
+// Documents/s3-result.txt (visible in Files: the physical Info.plist
+// carries UIFileSharingEnabled + LSSupportsOpeningDocumentsInPlace).
+// The same full report is ALSO displayed on screen in a scrollable
+// UITextView (20pt monospaced, white on black) — the primary channel
+// since the 2026-10-29 fix. NSLog mirrors the same lines.
 //
 // This is a spike harness, not FreeCAD code: no patches, no Qt.
 
@@ -16,6 +19,8 @@
 
 @interface AppDelegate : UIResponder <UIApplicationDelegate>
 @property (strong, nonatomic) UIWindow *window;
+@property (strong, nonatomic) UITextView *resultView;
+@property (strong, nonatomic) NSString *resultPath;
 @end
 
 @implementation AppDelegate
@@ -30,6 +35,7 @@
         NSDocumentDirectory, NSUserDomainMask, YES);
     NSString *resultPath = [[docs firstObject]
         stringByAppendingPathComponent:@"s3-result.txt"];
+    self.resultPath = resultPath;
 
     // Started-marker from the host side: if this file says STARTED but
     // the probe never overwrote it, the interpreter died mid-run.
@@ -83,17 +89,42 @@
     self.window = [[UIWindow alloc] initWithFrame:[[UIScreen mainScreen] bounds]];
     UIViewController *vc = [[UIViewController alloc] init];
     vc.view.backgroundColor = [UIColor blackColor];
-    UILabel *label = [[UILabel alloc] initWithFrame:vc.view.bounds];
-    label.text = @"S3 Python spike\n(see Documents/s3-result.txt)";
-    label.textColor = [UIColor whiteColor];
-    label.font = [UIFont systemFontOfSize:28];
-    label.numberOfLines = 0;
-    label.textAlignment = NSTextAlignmentCenter;
-    [vc.view addSubview:label];
+    // Self-reporting (2026-10-29 fix): the FULL probe result is shown
+    // on screen in a scrollable text view — the primary channel now.
+    // The Documents/s3-result.txt write in runProbe/probe.py stays as
+    // the secondary channel (readable via Files now that the physical
+    // Info.plist carries UIFileSharingEnabled).
+    UITextView *tv = [[UITextView alloc] initWithFrame:vc.view.bounds];
+    tv.autoresizingMask = UIViewAutoresizingFlexibleWidth |
+                          UIViewAutoresizingFlexibleHeight;
+    tv.backgroundColor = [UIColor blackColor];
+    tv.textColor = [UIColor whiteColor];
+    tv.font = [UIFont monospacedSystemFontOfSize:20.0
+                                           weight:UIFontWeightRegular];
+    tv.editable = NO;
+    tv.selectable = YES;
+    tv.scrollEnabled = YES;
+    tv.alwaysBounceVertical = YES;
+    tv.textContainerInset = UIEdgeInsetsMake(24, 16, 24, 16);
+    tv.text = @"S3 Python spike\n\nRunning Python probe...";
+    [vc.view addSubview:tv];
+    self.resultView = tv;
     self.window.rootViewController = vc;
     [self.window makeKeyAndVisible];
 
     [self runProbe];
+
+    NSString *result = self.resultPath
+        ? [NSString stringWithContentsOfFile:self.resultPath
+                                    encoding:NSUTF8StringEncoding
+                                       error:nil]
+        : nil;
+    if (result.length == 0) {
+        result = @"PYTHON-EMBED-FAIL: probe finished but no result "
+                  "text could be read back from Documents/s3-result.txt";
+    }
+    self.resultView.text = result;
+    [self.resultView setContentOffset:CGPointZero animated:NO];
     return YES;
 }
 
