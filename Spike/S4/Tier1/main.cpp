@@ -167,14 +167,14 @@ int main(int argc, char** argv)
     ::setenv("COIN_DEBUG_GLGLUE", "1", 1);
     ::setenv("COIN_DEBUG_DL", "1", 1);
     // Fix-22 diagnosis: Coin resolves GL entry points at runtime by
-    // NAME, but the names it asks for are gl4es's MANGLED symbols
+    // NAME, but the names it asked for were gl4es's MANGLED symbols
     // (gl4es's Apple header mangles gl* -> gl4es_gl*, and Coin's PROC
-    // stringification picks the mangled token up), which dlsym cannot
-    // find in this statically linked executable — so every runtime-
-    // resolved pointer (incl. all VBO functions) came back NULL and
-    // Coin drew nothing. COIN_GL_DISABLE_VBO is Coin's own documented
-    // switch to render without VBOs (direct-linked calls only).
-    ::setenv("COIN_GL_DISABLE_VBO", "1", 1);
+    // stringification picked the mangled token up), which dlsym
+    // cannot find in this statically linked executable. Fix 25: Coin
+    // is now compiled against a de-mangled copy of gl4es's gl.h, so
+    // it asks for plain names — proven resolvable (dlsym probes in
+    // this app: plain != NULL, mangled == NULL). VBO path therefore
+    // stays ENABLED for this run (the full production-shaped path).
     QApplication app(argc, argv);
 
     // Bring gl4es up FIRST, on a helper widget using the same surface

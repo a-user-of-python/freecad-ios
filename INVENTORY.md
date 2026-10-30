@@ -77,13 +77,24 @@ Qt ≥ 6.10: **zero**. **Zero [QT-API] failures in six probe runs** — Qt
 
 Two findings ride into Stage 7's configure, recorded here so they
 can't be lost:
-- **ICU is a hard dependency with no shortcut.** FreeCAD's top-level
-  `CMakeLists.txt:98` requires ICU (uc/i18n); FindICU in cross mode
-  cannot be satisfied by the SDK's `libicucore` (seven seeding layouts
-  proven insufficient by the probe). A real iOS ICU build joins the
-  foundations line (in progress). This settles synthesis appendix
-  item 4: the Xerces built-in-transcoder route does NOT cover
-  FreeCADBase's own ICU requirement.
+- **ICU is a hard dependency with no shortcut — now BUILT.** FreeCAD's
+  top-level `CMakeLists.txt:98` requires ICU (uc/i18n); FindICU in
+  cross mode cannot be satisfied by the SDK's `libicucore` (seven
+  seeding layouts proven insufficient by the probe). This settles
+  synthesis appendix item 4: the Xerces built-in-transcoder route does
+  NOT cover FreeCADBase's own ICU requirement. **Resolution
+  (2026-10-29):** the foundations line now builds **icu4c 78.1**
+  (sha256-pinned; host build for tools, then `--host=arm-apple-darwin`
+  static target build) with the **full data library**
+  (`libicudata.a` 33 MB — stubdata rejected: an external `.dat` is
+  unreliable in an iOS bundle). Green run `40985309078`, artifact
+  `iosdeps-foundations-06c242f5…` (23,533,405 B, download-verified,
+  zero `.dylib`s in prefix). The stage's own probe prints
+  `FINDICU-OK` (found 78.1, uc+i18n, linked `u_strlen`/`u_errorName`).
+  **Stage-7 configure note (from the probe's hardest failure):** seed
+  `ICU_INCLUDE_DIR` (and root) to the prefix — otherwise FindICU mixes
+  SDK libicucore headers (renaming OFF) with our renamed libraries
+  and the link fails on undefined `_u_*` symbols.
 - **rcc compression flags:** the official Qt 6.9.3 host `rcc` has no
   compiled-in zstd and rejects FreeCAD's default `--compress 19`
   under zlib. Stage 7 configures with

@@ -94,6 +94,10 @@ extern void gl4es_glEnableClientStateIndexed(GLenum array, GLuint index);
 extern void gl4es_glDisableClientStateIndexed(GLenum array, GLuint index);
 void gl4es_glEnableClientStatei(GLenum array, GLuint index) { gl4es_glEnableClientStateIndexed(array, index); }
 void gl4es_glDisableClientStatei(GLenum array, GLuint index) { gl4es_glDisableClientStateIndexed(array, index); }
+#undef glEnableClientStatei
+#undef glDisableClientStatei
+void glEnableClientStatei(GLenum array, GLuint index) { gl4es_glEnableClientStateIndexed(array, index); }
+void glDisableClientStatei(GLenum array, GLuint index) { gl4es_glDisableClientStateIndexed(array, index); }
 EOF
 	mkdir -p "$out"
 	xcrun -sdk "$sdk" clang -target "$tgt" -O2 \
@@ -225,6 +229,39 @@ build_coin() {
 	local out="$S4_PREFIX/$arch"
 	if [ -f "$out/lib/libCoin.a" ]; then echo "== Coin ($arch) already built"; return 0; fi
 	echo "== building Coin 4.0.10 ($arch) against gl4es"
+	# Header shim for the Coin build ONLY (Coin + gl4es sources stay
+	# untouched): gl4es's GL/gl.h force-enables its MGL namespace
+	# mangling on Apple (glFoo -> gl4es_glFoo via #defines in
+	# gl_mangle.h). Direct calls survive that (static linking), but
+	# Coin resolves most GL entry points at RUNTIME by stringifying
+	# the token — with mangling, the token stringifies to the mangled
+	# name, which dlsym cannot find in a statically linked executable
+	# (gl4es builds with hidden visibility). Result: every runtime-
+	# resolved pointer NULL, Coin draws nothing. Fix: give Coin a
+	# copy of gl4es's gl.h/glext.h with ONLY the mangling block
+	# neutralised (GL_GLEXT_PROTOTYPES kept). Coin then asks dlsym
+	# for plain names, which resolve to gl4es's plain-name AliasExport
+	# forwarders (verified at runtime: dlsym("glGenBuffers") != NULL,
+	# dlsym("gl4es_glGenBuffers") == NULL).
+	local shim="$S4_WORK/coin-gl-include"
+	mkdir -p "$shim/GL"
+	cp "$S4_PREFIX/src/gl4es/include/GL/gl.h" "$shim/GL/gl.h"
+	cp "$S4_PREFIX/src/gl4es/include/GL/glext.h" "$shim/GL/glext.h"
+	python3 - "$shim/GL/gl.h" <<'PYEOF'
+import re, sys
+p = sys.argv[1]
+s = open(p).read()
+s2 = re.sub(r"#if defined\(__EMSCRIPTEN__\) \|\| defined\(__APPLE__\)\n"
+            r"#define USE_MGL_NAMESPACE    1\n"
+            r"#define GL_GLEXT_PROTOTYPES  1\n"
+            r"#define MANGLE\(x\)            gl4es_gl##x\n"
+            r"#endif",
+            "#define GL_GLEXT_PROTOTYPES  1", s)
+s2 = re.sub(r"#if defined\(USE_MGL_NAMESPACE\)\n#include \"gl_mangle\.h\"\n#endif\n", "", s2)
+assert s2 != s and "gl_mangle" not in s2 and "USE_MGL_NAMESPACE" not in s2, "demangle failed"
+open(p, "w").write(s2)
+print("coin gl.h de-mangled")
+PYEOF
 	rm -rf "$S4_WORK/coin-$arch"
 	set +e
 	cmake -S "$S4_SRC/coin-4.0.10" -B "$S4_WORK/coin-$arch" -G Ninja \
@@ -237,7 +274,7 @@ build_coin() {
 		-DCOIN_USE_QT=OFF \
 		-DHAVE_GL_GL_H=ON -DHAVE_GL_GLU_H=ON -DHAVE_GL_GLEXT_H=ON \
 		-DHAVE_DLD_LIB= -DHAVE_DYLD_RUNTIME_BINDING= \
-		-DOPENGL_INCLUDE_DIR="$S4_PREFIX/src/gl4es/include" \
+		-DOPENGL_INCLUDE_DIR="$shim" \
 		-DOPENGL_gl_LIBRARY="$out/lib/libGL.a" \
 		-DOPENGL_glu_LIBRARY="$out/lib/libGLU.a" \
 		-DGLU_INCLUDE_DIR="$S4_PREFIX/src/glu-include" \
