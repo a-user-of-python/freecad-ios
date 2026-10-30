@@ -314,9 +314,10 @@ rm -rf "$ICU_IOS_BUILD"; mkdir -p "$ICU_IOS_BUILD"
 # "../lib/libicuuc.a: No such file or directory").
 mkdir -p "$ICU_IOS_BUILD/lib" "$ICU_IOS_BUILD/bin"
 for icudir in stubdata common i18n data io tools/toolutil; do
+	iculog="${icudir//\//_}"
 	echo "== ICU target: make -C $icudir"
-	make -C "$ICU_IOS_BUILD/$icudir" -j"$NCPU" > "$WORK/icu-ios-build-$icudir.log" 2>&1 \
-		|| { echo "ERROR: ICU target build failed in $icudir" >&2; tail -30 "$WORK/icu-ios-build-$icudir.log" >&2; exit 1; }
+	make -C "$ICU_IOS_BUILD/$icudir" -j"$NCPU" > "$WORK/icu-ios-build-$iculog.log" 2>&1 \
+		|| { echo "ERROR: ICU target build failed in $icudir" >&2; tail -30 "$WORK/icu-ios-build-$iculog.log" >&2; exit 1; }
 done
 : > "$WORK/icu-ios-install.log"
 for icudir in stubdata common i18n data io tools/toolutil; do
