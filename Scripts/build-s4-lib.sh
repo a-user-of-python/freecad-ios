@@ -247,6 +247,12 @@ build_coin() {
 	mkdir -p "$shim/GL"
 	cp "$S4_PREFIX/src/gl4es/include/GL/gl.h" "$shim/GL/gl.h"
 	cp "$S4_PREFIX/src/gl4es/include/GL/glext.h" "$shim/GL/glext.h"
+	# glu.h as-is: its glu_mangle.h include is gated on
+	# USE_MGL_NAMESPACE, which the de-mangled gl.h never defines, so
+	# GLU declarations stay plain (matching libGLU.a). Coin's
+	# generated gl-headers.h includes <GL/glu.h> and found it in the
+	# old OPENGL_INCLUDE_DIR; the shim must provide it too.
+	cp "$S4_PREFIX/src/gl4es/include/GL/glu.h" "$shim/GL/glu.h"
 	python3 - "$shim/GL/gl.h" <<'PYEOF'
 import re, sys
 p = sys.argv[1]
