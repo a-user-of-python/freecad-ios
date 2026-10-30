@@ -30,6 +30,23 @@
 #        A3 + [CONFIG] bypasses to reach the Qt stage: BUILD_FEM=OFF,
 #           BUILD_MESH_PART=OFF (SMESH's VTK/MED wall is pre-Qt),
 #           OpenGL/GLU seeds (iOS has no GLU; S4 owns the real one)
+#
+# PHASE 2 (2026-10-29, full configure depth): foundations now carries
+# a real iOS ICU 78.1 (run 40985309078) and deps-occt is REAL (run
+# 40983737180, 35 libTK*.a). The ladder below is REPLACED by the
+# Phase-2 ladder in section 5: every attempt uses the Stage-7 shape
+# seeds (ICU->foundations prefix — mandatory, see INVENTORY; Python->
+# BeeWare prefix; OCC->occt prefix; rcc zlib/9; GL/GLU probe stubs,
+# labelled [CONFIG]) and differs only in the module set:
+#        P2-A1 the LEAN set exactly as named in the plan of record
+#              (Part, PartDesign, Sketcher, Spreadsheet, Mesh, Import;
+#              everything else OFF, incl. Material/Draft/TechDraw)
+#        P2-A2 the dependency-CLOSED lean set (A1 + Material, Draft,
+#              TechDraw, Measure — the minimal closure demanded by
+#              CheckInterModuleDependencies.cmake in the pinned tree)
+#        P2-A3 A2's module set with BUILD_GUI=OFF (console shape —
+#              isolates GUI-class vs core-class blockers if A2 stops)
+# No FreeCAD sources are patched in this probe, ever.
 #      Probe-local dep fill: fmt 12.1.0 built into the prefix if no
 #      fmt config landed (top-level find_package(fmt REQUIRED) runs
 #      before everything; no staged workflow builds fmt yet).
@@ -189,6 +206,9 @@ rm -rf "$WORK/merge"
 	TKC="$(ls "$PREFIX"/lib/libTK*.a 2>/dev/null | wc -l | tr -d ' ')"
 	if [ -f "$PREFIX/lib/libTKHLR.a" ]; then echo "occt: REAL (libTKHLR.a present; $TKC libTK*.a total)";
 	else echo "occt: MISSING ($TKC libTK*.a present)"; fi
+	if [ -f "$PREFIX/lib/libicuuc.a" ] && [ -f "$PREFIX/lib/libicui18n.a" ] && [ -d "$PREFIX/include/unicode" ]; then
+		echo "icu: REAL (libicuuc.a + libicui18n.a + unicode/ headers in foundations prefix)";
+	else echo "icu: MISSING"; fi
 	echo "prefix tree (top):"; find "$PREFIX" -maxdepth 2 | sort | head -40
 } | tee "$DIST/deps-inventory.txt"
 
@@ -337,55 +357,72 @@ run_attempt() { # run_attempt <n> <extra cmake args...>
 qt_reached() { grep -q "Set up to compile with Qt" "$DIST/configure-attempt$1.log" 2>/dev/null; }
 cfg_done() { grep -q "Generating done" "$DIST/configure-attempt$1.log" 2>/dev/null; }
 
-run_attempt 1
+# ---- PHASE-2 ladder (replaces the Phase-1 A2/A3 blocks) ----
+# Stage-7 shape seeds, common to every Phase-2 attempt:
+#  * rcc zlib/9 (Phase-1 [CONFIG] finding; host rcc has no zstd)
+#  * ICU -> foundations prefix (MANDATORY per INVENTORY: without
+#    ICU_INCLUDE_DIR seeded to the prefix, FindICU mixes SDK
+#    libicucore headers with the prefix's renamed libraries)
+#  * Python -> BeeWare prefix; OCC -> occt prefix
+#  * OpenGL/GLU -> probe stub archives ([CONFIG] seed; iOS has no
+#    GLU — the real companion GLU is S4 scope; SetupOpenGL fatals
+#    pre-Qt without a GLU library)
+SYNTH+=(
+	-DFREECAD_RCC_COMPRESSION_ALGO=zlib
+	-DFREECAD_RCC_COMPRESSION_LEVEL=9
+)
+P2SEEDS=()
+[ -f "$PREFIX/include/python3.13/Python.h" ] && P2SEEDS+=(
+	-DPython3_EXECUTABLE="$(command -v python3)"
+	-DPython3_INCLUDE_DIR="$PREFIX/include/python3.13"
+	-DPython3_LIBRARY="$PREFIX/Python.xcframework/ios-arm64/Python.framework/Python")
+[ -f "$PREFIX/lib/libicuuc.a" ] && P2SEEDS+=(
+	-DICU_ROOT="$PREFIX"
+	-DICU_INCLUDE_DIR="$PREFIX/include"
+	-DICU_INCLUDE_DIRS="$PREFIX/include")
+[ -d "$PREFIX/include/opencascade" ] && \
+	P2SEEDS+=(-DOCC_INCLUDE_DIR="$PREFIX/include/opencascade")
+[ -n "${IOS_SDK_PATH:-}" ] && [ -d "$IOS_SDK_PATH" ] && P2SEEDS+=(
+	-DOPENGL_INCLUDE_DIR="$IOS_SDK_PATH/usr/include"
+	-DOPENGL_gl_LIBRARY="$WORK/glstub/libGL.a"
+	-DOPENGL_glu_LIBRARY="$WORK/glstub/libGLU.a")
+# The LEAN module set (plan of record 2026-10-29): Part, PartDesign,
+# Sketcher, Spreadsheet, Mesh, Import ON; FEM and the rest OFF.
+LEAN_EXACT=(
+	-DBUILD_PART=ON -DBUILD_PART_DESIGN=ON -DBUILD_SKETCHER=ON
+	-DBUILD_SPREADSHEET=ON -DBUILD_MESH=ON -DBUILD_IMPORT=ON
+	-DBUILD_FEM=OFF -DBUILD_FEM_NETGEN=OFF -DBUILD_MESH_PART=OFF
+	-DBUILD_FLAT_MESH=OFF -DBUILD_ADDONMGR=OFF -DBUILD_BIM=OFF
+	-DBUILD_DRAFT=OFF -DBUILD_HELP=OFF -DBUILD_INSPECTION=OFF
+	-DBUILD_JTREADER=OFF -DBUILD_MATERIAL=OFF
+	-DBUILD_MATERIAL_EXTERNAL=OFF -DBUILD_OPENSCAD=OFF
+	-DBUILD_CAM=OFF -DBUILD_ASSEMBLY=OFF -DBUILD_PLOT=OFF
+	-DBUILD_POINTS=OFF -DBUILD_REVERSEENGINEERING=OFF
+	-DBUILD_ROBOT=OFF -DBUILD_SHOW=OFF -DBUILD_START=OFF
+	-DBUILD_TEMPLATE=OFF -DBUILD_TEST=OFF -DBUILD_MEASURE=OFF
+	-DBUILD_TECHDRAW=OFF -DBUILD_TUX=OFF -DBUILD_WEB=OFF
+	-DBUILD_SURFACE=OFF
+)
+# Dependency closure demanded by the pinned tree's
+# CheckInterModuleDependencies.cmake: Part->Material,
+# Spreadsheet->Draft, Draft->Sketcher+TechDraw,
+# TechDraw->Part+PartDesign+Spreadsheet+Measure+Import.
+LEAN_CLOSED=(
+	-DBUILD_MATERIAL=ON -DBUILD_DRAFT=ON -DBUILD_TECHDRAW=ON
+	-DBUILD_MEASURE=ON
+)
+# bash 3.2 (macOS /bin/bash) + set -u: "${arr[@]}" on an EMPTY array
+# is a fatal unbound-variable — use the ${arr[@]+...} idiom.
+run_attempt 1 ${P2SEEDS[@]+"${P2SEEDS[@]}"} "${LEAN_EXACT[@]}"
 if ! cfg_done 1; then
-	# A2 seeds ([CONFIG], feedstock-style).
-	SEEDS=()
-	[ -f "$PREFIX/include/python3.13/Python.h" ] && SEEDS+=(
-		-DPython3_EXECUTABLE="$(command -v python3)"
-		-DPython3_INCLUDE_DIR="$PREFIX/include/python3.13"
-		-DPython3_LIBRARY="$PREFIX/Python.xcframework/ios-arm64/Python.framework/Python")
-	[ -f "$IOS_SDK_PATH/usr/lib/libicucore.tbd" ] && SEEDS+=(
-		-DICU_INCLUDE_DIR="$IOS_SDK_PATH/usr/include"
-		-DICU_INCLUDE_DIRS="$IOS_SDK_PATH/usr/include"
-		-DICU_UC_LIBRARIES="$IOS_SDK_PATH/usr/lib/libicucore.tbd"
-		-DICU_I18N_LIBRARIES="$IOS_SDK_PATH/usr/lib/libicucore.tbd"
-		-DICU_UC_LIBRARY="$IOS_SDK_PATH/usr/lib/libicucore.tbd"
-		-DICU_I18N_LIBRARY="$IOS_SDK_PATH/usr/lib/libicucore.tbd"
-		-DICU_LIBRARY="$IOS_SDK_PATH/usr/lib/libicucore.tbd")
-	[ -d "$PREFIX/include/opencascade" ] && \
-		SEEDS+=(-DOCC_INCLUDE_DIR="$PREFIX/include/opencascade")
-	# bash 3.2 (macOS /bin/bash) + set -u: "${SEEDS[@]}" on an EMPTY
-	# array is a fatal unbound-variable — it killed run 40946217444
-	# at exactly this line. Use the ${arr[@]+...} idiom everywhere
-	# an array may be empty.
-	run_attempt 2 ${SEEDS[@]+"${SEEDS[@]}"}
+	run_attempt 2 ${P2SEEDS[@]+"${P2SEEDS[@]}"} \
+		"${LEAN_EXACT[@]}" "${LEAN_CLOSED[@]}"
 fi
-if ! cfg_done 1 && ! cfg_done 2 && ! qt_reached 2; then
-	# A3: bypass the pre-Qt SMESH/VTK wall + seed OpenGL/GLU.
-	SEEDS3=()
-	[ -f "$PREFIX/include/python3.13/Python.h" ] && SEEDS3+=(
-		-DPython3_EXECUTABLE="$(command -v python3)"
-		-DPython3_INCLUDE_DIR="$PREFIX/include/python3.13"
-		-DPython3_LIBRARY="$PREFIX/Python.xcframework/ios-arm64/Python.framework/Python")
-	[ -f "$IOS_SDK_PATH/usr/lib/libicucore.tbd" ] && SEEDS3+=(
-		-DICU_INCLUDE_DIR="$IOS_SDK_PATH/usr/include"
-		-DICU_INCLUDE_DIRS="$IOS_SDK_PATH/usr/include"
-		-DICU_UC_LIBRARIES="$IOS_SDK_PATH/usr/lib/libicucore.tbd"
-		-DICU_I18N_LIBRARIES="$IOS_SDK_PATH/usr/lib/libicucore.tbd"
-		-DICU_UC_LIBRARY="$IOS_SDK_PATH/usr/lib/libicucore.tbd"
-		-DICU_I18N_LIBRARY="$IOS_SDK_PATH/usr/lib/libicucore.tbd"
-		-DICU_LIBRARY="$IOS_SDK_PATH/usr/lib/libicucore.tbd")
-	[ -d "$PREFIX/include/opencascade" ] && \
-		SEEDS3+=(-DOCC_INCLUDE_DIR="$PREFIX/include/opencascade")
-	# BUILD_BIM/FLAT_MESH/OPENSCAD OFF too: CheckInterModuleDependencies
-	# requires MESH_PART for them (run 40962937748 attempt-3 noise).
-	run_attempt 3 ${SEEDS3[@]+"${SEEDS3[@]}"} \
-		-DBUILD_FEM=OFF -DBUILD_MESH_PART=OFF -DBUILD_FEM_NETGEN=OFF \
-		-DBUILD_BIM=OFF -DBUILD_FLAT_MESH=OFF -DBUILD_OPENSCAD=OFF \
-		-DOPENGL_INCLUDE_DIR="$IOS_SDK_PATH/usr/include" \
-		-DOPENGL_gl_LIBRARY="$WORK/glstub/libGL.a" \
-		-DOPENGL_glu_LIBRARY="$WORK/glstub/libGLU.a"
+if ! cfg_done 1 && ! cfg_done 2; then
+	# Console shape: same closed-lean modules, BUILD_GUI=OFF —
+	# isolates GUI-class vs core-class blockers.
+	run_attempt 3 ${P2SEEDS[@]+"${P2SEEDS[@]}"} \
+		"${LEAN_EXACT[@]}" "${LEAN_CLOSED[@]}" -DBUILD_GUI=OFF
 fi
 
 # ------------------------------------------------------- 6. classify

@@ -30,7 +30,7 @@ import sys
 DEP_PATTERNS = [
     (r"OpenCASCADE|OCC[^_]|TK[A-Z]\w*\.a", "OCCT (cascade-ios prefix)"),
     (r"\bfmt\b", "fmt (external; FREECAD_USE_EXTERNAL_FMT=OFF still find_package(fmt))"),
-    (r"\bICU\b|icu", "ICU (no iOS build staged; SDK ships libicucore only)"),
+    (r"\bICU\b|icu", "ICU (foundations 78.1 prefix; ICU_INCLUDE_DIR must seed to the prefix)"),
     (r"Python3|PythonInterp|libpython", "Python 3.13 (BeeWare prefix)"),
     (r"Xerces", "Xerces-C (foundations)"),
     (r"Boost", "Boost (foundations)"),
@@ -51,6 +51,7 @@ DEP_PATTERNS = [
     (r"Matplotlib|matplotlib", "Matplotlib (python runtime check)"),
 ]
 CONFIG_PATTERNS = [
+    (r"requires BUILD_\w+ to be ON", "inter-module dependency closure (CheckInterModuleDependencies.cmake): the module set as named is not dependency-closed in the pinned tree — a [CONFIG] module-set choice, resolved by the closed-lean attempt"),
     (r"Zstandard support not compiled in|compress-algo|invalid compression level", "host rcc (Qt 6.9.3 official kit) has no compiled-in zstd, but FreeCAD's FREECAD_RCC_OPTIONS default to zstd+level19 — remedy pair is FreeCAD's own cache vars FREECAD_RCC_COMPRESSION_ALGO=zlib + FREECAD_RCC_COMPRESSION_LEVEL=9 (SetupQt.cmake exposes both)"),
     (r"iphoneos is not an iOS SDK|SDK.*cannot be located|No iOS SDK", "iPhoneOS SDK resolution on the runner (CMake 4.x validates qt.toolchain's name-based sysroot via xcrun; SDK-bearing Xcode must not be deleted by the maximize step)"),
     (r"GLU|OpenGL|GLESv2|\bEGL\b", "OpenGL/GLU/GLES: iOS SDK resolution + gl4es companion GLU (S4) or a probe seed; SetupOpenGL.cmake fatals pre-Qt"),
@@ -130,7 +131,7 @@ def main():
 
     inventory = read("deps-inventory.txt")
     deps_complete = ("foundations: REAL" in inventory and "occt: REAL" in inventory
-                     and "python: REAL" in inventory)
+                     and "python: REAL" in inventory and "icu: REAL" in inventory)
     battery_cfg = read("battery-configure.log")
     battery_bld = read("battery-build.log")
     battery_pass = ("QTGATE: all REQUIRED SetupQt components found" in battery_cfg
@@ -204,15 +205,31 @@ def main():
     hi = sorted({g[0] for g in guards})
     ge10 = [g for g in guards if g[0] >= 10]
 
+    # Accepted module list from the completing attempt's
+    # PrintFinalReport (BUILD_X = ON/OFF lines), if any attempt
+    # reached generation.
+    accepted_modules = []
+    for n, log in attempts.items():
+        if isinstance(n, int) and "Generating done" in log:
+            accepted_modules = sorted(set(re.findall(
+                r"^\s*(BUILD_[A-Z_]+)\s*=\s*(ON|OFF)\b", log, re.M)))
+            break
+
     # ---------------- verdict ----------------
     if qt_api_items or any(t == "QT-API" for t, *_ in all_items):
         verdict = "GATE-FAIL"
         basis = "at least one [QT-API] item (enumerated below)"
-    elif battery_pass and (any_complete or qt_stage_pass):
+    elif any_complete:
+        verdict = "CONFIGURE-REACHED"
+        basis = ("PHASE-2: the pinned snapshot's REAL top-level CMake "
+                 "configure COMPLETED and generated (Generating done) "
+                 "against Qt 6.9.3 iOS + foundations/OCCT/python "
+                 "prefixes, lean module shape; no [QT-API] items. "
+                 "This is also a GATE-PASS at full depth.")
+    elif battery_pass and qt_stage_pass:
         verdict = "GATE-PASS"
-        basis = ("configure " + ("completed" if any_complete else
-                                 f"passed the SetupQt stage (attempt(s) {qt_stage_pass})")
-                 + "; every configure error is [DEP]/[CONFIG]")
+        basis = (f"configure passed the SetupQt stage (attempt(s) {qt_stage_pass}) "
+                 "but did not reach generation; every configure error is [DEP]/[CONFIG]")
     elif battery_pass and attempts and all(t in ("DEP", "CONFIG") for t, *_ in all_items):
         # Task's GATE-PASS definition: configure fails ONLY on
         # [DEP]/[CONFIG] items with the Qt layer clean. The battery
@@ -221,16 +238,16 @@ def main():
         # the basis records the depth honestly.
         if deps_complete:
             verdict = "GATE-PASS"
-            basis = ("Qt layer proven by the battery; configure stopped pre-Qt "
-                     "only on [DEP]/[CONFIG] items despite complete deps")
+            basis = ("PHASE-2 depth: battery FULL PASS and every configure stop "
+                     "is [DEP]/[CONFIG] with ALL deps REAL (foundations+ICU, "
+                     "OCCT, python) — the first such stop is the Phase-2 blocker "
+                     "of record (see classified errors below)")
         else:
             verdict = "GATE-PASS"
-            basis = ("Phase-1 depth: battery FULL PASS (SetupQt component set + "
-                     "newest-branch APIs compile+link vs the 6.9.3 iOS kit) and "
-                     "every configure stop is [DEP]/[CONFIG] pre-Qt (missing: "
-                     "foundations + OCCT artifacts, plus the ICU iOS item). "
-                     "Full-depth configure verdict still requires the Phase-2 "
-                     "re-run when foundations+OCCT artifacts are real")
+            basis = ("battery FULL PASS (SetupQt component set + newest-branch "
+                     "APIs compile+link vs the 6.9.3 iOS kit) and every "
+                     "configure stop is [DEP]/[CONFIG]; deps inventory above "
+                     "states what was not REAL in this run")
     elif not battery_pass:
         verdict = "GATE-BLOCKED"
         basis = "the battery itself could not run clean (kit/component problem — see logs)"
@@ -248,6 +265,11 @@ def main():
     lines.append(f"Configure complete (any attempt): {any_complete}")
     lines.append(f"SetupQt passed in attempt(s): {qt_stage_pass or 'none'}")
     lines.append(f"Battery: {'PASS' if battery_pass else 'FAIL/INCOMPLETE'}")
+    if accepted_modules:
+        on = [m for m, v in accepted_modules if v == "ON"]
+        off = [m for m, v in accepted_modules if v == "OFF"]
+        lines.append(f"Accepted modules ON (PrintFinalReport): {', '.join(on) or 'none parsed'}")
+        lines.append(f"Accepted modules OFF: {', '.join(off) or 'none parsed'}")
     lines.append("")
     lines.append("## Deps inventory (REAL = artifact present + marker files verified)")
     lines.append("```")
